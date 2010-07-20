@@ -1,0 +1,3 @@
+[D-BUS Service]
+Name=org.kde.kaccessibleapp
+Exec=@LIBEXEC_INSTALL_DIR@/kaccessibleapp
