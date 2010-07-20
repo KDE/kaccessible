@@ -123,8 +123,8 @@ void Bridge::setRootObject(QAccessibleInterface *interface)
             return;
         }
 
-        //qDebug()<<"registeredServiceNames2="<<QDBusConnection::sessionBus().interface()->registeredServiceNames().value();
-        QDBusConnection::sessionBus().connect("org.kde.kaccessibleapp", "/Adaptor", "org.kde.kaccessibleapp.Adaptor", "focusChanged", this, SLOT(focusChanged(int,int)));
+        //for testing;
+        //QDBusConnection::sessionBus().connect("org.kde.kaccessibleapp", "/Adaptor", "org.kde.kaccessibleapp.Adaptor", "focusChanged", this, SLOT(focusChanged(int,int)));
     }
 }
 
