@@ -36,7 +36,7 @@ macro(dbus_add_activation_service _sources)
         string(REGEX REPLACE "\\.service.*$" ".service" _output_file ${_i})
         set(_target ${CMAKE_CURRENT_BINARY_DIR}/${_output_file})
         configure_file(${_service_file} ${_target})
-        install(FILES ${_target} DESTINATION ${_install_dir})
+        install(FILES ${_target} DESTINATION ${CMAKE_INSTALL_PREFIX}/share/dbus-1/services )
     endforeach (_i ${ARGN})
 endmacro(dbus_add_activation_service _sources)
 
