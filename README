@@ -1,0 +1,24 @@
+kaccessible implements a QAccessibleBridgePlugin to provide accessibility services like focus tracking.
+
+Components;
+* kaccessibleapp is a dbus activation service that acts as proxy.
+* kaccessiblebridge will be loaded by the QAccessible framework into each Qt-/KDE-application.
+
+Usage;
+You need to call "export QT_ACCESSIBILITY=1" before you start the application that should be made
+accessible. Per default this is disabled cause QAccessible can slow down things.
+
+Used in;
+* KMag's "Follow Focus" Mode.
+* soon; KWin zoom and magnifier plugins.
+
+Todo;
+* Implement QAccessibleInterface's if needed for;
+  * Konqueror, Dolphin, KHtml, WebKit
+  * KWrite's KateInternal text-canvas
+  * Plasma desktop, panel and kickoff
+* Look how to better integrate Gtk-apps (qtatspi)
+* Integrate Jovie/opentts/Orca
+* key-echo
+* better cursor markers like CrossHair or RedFrame
+* brail, profiles, ...

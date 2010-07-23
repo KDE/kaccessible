@@ -31,9 +31,9 @@ class Adaptor : public QObject
         explicit Adaptor(QObject* parent = 0) : QObject(parent) {}
         virtual ~Adaptor() {}
     Q_SIGNALS:
-        void focusChanged(/*QObject *obj,*/ int x, int y);
+        void focusChanged(/*QObject *obj,*/ int x, int y, int width, int height);
     public Q_SLOTS:
-        void setFocusChanged(/*QObject *obj,*/ int x, int y) { emit focusChanged(/*obj,*/ x, y); }
+        void setFocusChanged(/*QObject *obj,*/ int x, int y, int width, int height) { emit focusChanged(/*obj,*/ x, y, width, height); }
 };
 
 class KAccessibleApp : public KUniqueApplication

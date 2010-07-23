@@ -34,11 +34,13 @@ class Bridge : public QObject, public QAccessibleBridge
         virtual void notifyAccessibilityUpdate(int reason, QAccessibleInterface *interface, int child);
         virtual void setRootObject(QAccessibleInterface *interface);
     private Q_SLOTS:
-        void focusChanged(int x, int y);
+        void focusChanged(int x, int y, int width, int height);
     private:
         BridgePlugin *m_plugin;
         const QString m_key;
         QAccessibleInterface *m_root;
+        QObject *m_currentPopupMenu;
+        QList<QObject*> m_shownObjects;
 };
 
 class BridgePlugin : public QAccessibleBridgePlugin

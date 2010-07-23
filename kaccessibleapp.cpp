@@ -18,18 +18,18 @@
  */
 #include "kaccessibleapp.h"
 
-#include <QDebug>
 #include <QDBusConnection>
 #include <QTimer>
 #include <klocale.h>
 #include <kaboutdata.h>
 #include <kcmdlineargs.h>
+#include <kdebug.h>
 
 KAccessibleApp::KAccessibleApp()
     : KUniqueApplication()
 {
     if( ! QDBusConnection::sessionBus().registerObject("/Adaptor", new Adaptor(this), QDBusConnection::ExportAllContents)) {
-        qDebug() << "Unable to register KAccessibleApp to dbus";
+        kWarning() << "Unable to register KAccessibleApp to dbus";
         QTimer::singleShot(0, this, SLOT(quit()));
     }
 }
