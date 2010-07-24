@@ -40,7 +40,6 @@ class Bridge : public QObject, public QAccessibleBridge
         const QString m_key;
         QAccessibleInterface *m_root;
         QObject *m_currentPopupMenu;
-        QList<QObject*> m_shownObjects;
 };
 
 class BridgePlugin : public QAccessibleBridgePlugin

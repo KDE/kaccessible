@@ -59,9 +59,9 @@ QString reasonToString(int reason)
         case QAccessible::NameChanged: return "QAccessible::NameChanged";
         case QAccessible::ObjectCreated: return "QAccessible::ObjectCreated";
         case QAccessible::ObjectDestroyed: return "QAccessible::ObjectDestroyed";
-        case QAccessible::ObjectHide: return "QAccessible::ObjectHide";
+        //case QAccessible::ObjectHide: return "QAccessible::ObjectHide";
         case QAccessible::ObjectReorder: return "QAccessible::ObjectReorder";
-        case QAccessible::ObjectShow: return "QAccessible::ObjectShow";
+        //case QAccessible::ObjectShow: return "QAccessible::ObjectShow";
         case QAccessible::ParentChanged: return "QAccessible::ParentChanged";
         case QAccessible::Alert: return "QAccessible::Alert";
         case QAccessible::DefaultActionChanged: return "QAccessible::DefaultActionChanged";
@@ -85,21 +85,18 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
         return;
     }
 
+    if(reason == QAccessible::ObjectShow || reason == QAccessible::ObjectHide) {
+        return;
+    }
+
     QAccessibleInterface *childInterface = 0;
     if(child > 0) {
         interface->navigate(QAccessible::Child, child, &childInterface);
-        Q_ASSERT(childInterface);
     }
 
-    kDebug() << "reason=" << reasonToString(reason) << "child=" << child << "childrect=" << interface->rect(child) << "object=" << (interface->object() ? QString("%1 (%2)").arg(interface->object()->objectName()).arg(interface->object()->metaObject()->className()) : "NULL") << "childInterface=" << (childInterface && childInterface->object() ? QString("%1 (%2)").arg(childInterface->object()->objectName()).arg(childInterface->object()->metaObject()->className()) : "NULL");
+    kDebug() << "reason=" << reasonToString(reason) << "child=" << child << "childrect=" << interface->rect(child) << "state=" << interface->state(child) << "object=" << (interface->object() ? QString("%1 (%2)").arg(interface->object()->objectName()).arg(interface->object()->metaObject()->className()) : "NULL") << "childInterface=" << (childInterface && childInterface->object() ? QString("%1 (%2)").arg(childInterface->object()->objectName()).arg(childInterface->object()->metaObject()->className()) : "NULL");
 
     switch(reason) {
-        case QAccessible::ObjectHide:
-            m_shownObjects.removeAll(interface->object());
-            break;
-        case QAccessible::ObjectShow:
-            m_shownObjects.append(interface->object());
-            break;
         case QAccessible::PopupMenuStart:
             m_currentPopupMenu = interface->object();
             break;
@@ -119,9 +116,8 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
                     r = QRect(w->mapToGlobal(QPoint(w->x(), w->y())), w->size());
             }
             if(r.x() >= 0 && r.y() >= 0) {
-                const bool isVisible = m_shownObjects.contains(interface->object());
                 const bool interruptsPopup = m_currentPopupMenu && !childInterface;
-                if (isVisible && !interruptsPopup) {
+                if (!interruptsPopup) {
                     QDBusInterface iface("org.kde.kaccessibleapp","/Adaptor");
                     iface.asyncCall("setFocusChanged", r.x(), r.y(), r.width(), r.height());
                 }
