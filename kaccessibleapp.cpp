@@ -25,6 +25,11 @@
 #include <kcmdlineargs.h>
 #include <kdebug.h>
 
+void Adaptor::setFocusChanged(int px, int py, int rx, int ry, int rwidth, int rheight)
+{
+    emit focusChanged(px, py, rx, ry, rwidth, rheight);
+}
+
 KAccessibleApp::KAccessibleApp()
     : KUniqueApplication()
 {

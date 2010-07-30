@@ -28,18 +28,33 @@
 
 Q_EXPORT_PLUGIN(BridgePlugin)
 
+class Bridge::Private
+{
+    public:
+        BridgePlugin *m_plugin;
+        const QString m_key;
+        QAccessibleInterface *m_root;
+        QObject *m_currentPopupMenu;
+        
+        Private(BridgePlugin *plugin, const QString& key)
+            : m_plugin(plugin)
+            , m_key(key)
+            , m_root(0)
+            , m_currentPopupMenu(0)
+        {
+        }
+};
+
 Bridge::Bridge(BridgePlugin *plugin, const QString& key)
     : QObject(plugin)
     , QAccessibleBridge()
-    , m_plugin(plugin)
-    , m_key(key)
-    , m_root(0)
-    , m_currentPopupMenu(0)
+    , d(new Private(plugin, key))
 {
 }
 
 Bridge::~Bridge()
 {
+    delete d;
 }
 
 QString reasonToString(int reason)
@@ -81,7 +96,7 @@ QString reasonToString(int reason)
 
 void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interface, int child)
 {
-    if(!m_root) {
+    if(!d->m_root) {
         return;
     }
 
@@ -98,49 +113,54 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
 
     switch(reason) {
         case QAccessible::PopupMenuStart:
-            m_currentPopupMenu = interface->object();
+            d->m_currentPopupMenu = interface->object();
             break;
         case QAccessible::PopupMenuEnd:
-            m_currentPopupMenu = 0;
+            d->m_currentPopupMenu = 0;
             break;
-        
+
+        //FIX kwrite to send out better events then only StateChanged...
+        case QAccessible::StateChanged:
+            // fall through...
+
         case QAccessible::Focus: {
-            QRect r(QPoint(-1,-1),QSize(0,0));
-            if(child > 0) {
-                r = interface->rect(child);
-            } else {
-                QWidget *w = childInterface ? dynamic_cast<QWidget*>(childInterface->object()) : 0;
-                if(!w)
-                    w = dynamic_cast<QWidget*>(interface->object());
-                if(w)
-                    r = QRect(w->mapToGlobal(QPoint(w->x(), w->y())), w->size());
-            }
-            if(r.x() >= 0 && r.y() >= 0) {
-                const bool interruptsPopup = m_currentPopupMenu && !childInterface;
-                if (!interruptsPopup) {
-                    QDBusInterface iface("org.kde.kaccessibleapp","/Adaptor");
-                    iface.asyncCall("setFocusChanged", r.x(), r.y(), r.width(), r.height());
-                }
-            }
+            // abort if the focus would interrupt a popupmenu
+            if(d->m_currentPopupMenu && !childInterface)
+                return;
+
+            // an optional exact point that has the focus
+            QPoint p(-1,-1);            
+            // the rectangle that has focus
+            QRect r = interface->rect(child);
+
+            // here we could add hacks to special case applications/widgets :)
+            //
+            // QWidget *w = childInterface ? dynamic_cast<QWidget*>(childInterface->object()) : 0;
+            // if(!w) w = dynamic_cast<QWidget*>(interface->object());
+            // if(w) r = QRect(w->mapToGlobal(QPoint(w->x(), w->y())), w->size());
+
+            QDBusInterface iface("org.kde.kaccessibleapp","/Adaptor");
+            iface.asyncCall("setFocusChanged", p.x(), p.y(), r.x(), r.y(), r.width(), r.height());
         } break;
         default:
             break;
     }
 }
 
-void Bridge::focusChanged(int x, int y, int width, int height)
+void Bridge::focusChanged(int px, int py, int rx, int ry, int rwidth, int rheight)
 {
-    kDebug()<<"KAccessibleBridge: focusChanged x="<<x<<"y="<<y<<"width="<<width<<"height="<<height;
+    kDebug()<<"KAccessibleBridge: focusChanged px=" << px << "py=" << py << "rx=" << rx << "ry=" << ry << "rwidth=" << rwidth << "rheight=" << rheight;
 }
 
 void Bridge::setRootObject(QAccessibleInterface *interface)
 {
-    m_root = interface;
+    d->m_root = interface;
+
     kDebug()<<"KAccessibleBridge: setRootObject object=" << (interface->object() ? QString("%1 (%2)").arg(interface->object()->objectName()).arg(interface->object()->metaObject()->className()) : "NULL");
 
     if( ! QDBusConnection::sessionBus().isConnected()) {
         kWarning()<<"KAccessibleBridge: Failed to connect to session bus";
-        m_root = 0;
+        d->m_root = 0;
         return;
     }
 
@@ -149,12 +169,12 @@ void Bridge::setRootObject(QAccessibleInterface *interface)
         QDBusConnection::sessionBus().interface()->startService("org.kde.kaccessibleapp");
         if( ! QDBusConnection::sessionBus().interface()->isServiceRegistered("org.kde.kaccessibleapp")) {
             kWarning()<<"KAccessibleBridge: Failed to start kaccessibleapp dbus service";
-            m_root = 0;
+            d->m_root = 0;
             return;
         }
 
         //for testing;
-        //QDBusConnection::sessionBus().connect("org.kde.kaccessibleapp", "/Adaptor", "org.kde.kaccessibleapp.Adaptor", "focusChanged", this, SLOT(focusChanged(int,int,int,int)));
+        //QDBusConnection::sessionBus().connect("org.kde.kaccessibleapp", "/Adaptor", "org.kde.kaccessibleapp.Adaptor", "focusChanged", this, SLOT(focusChanged(int,int,int,int,int,int)));
     }
 }
 

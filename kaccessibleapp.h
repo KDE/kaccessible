@@ -23,19 +23,42 @@
 #include <QDebug>
 #include <KUniqueApplication>
 
+/**
+ * THe Adaptor class provides a dbus interface for the KAccessibleApp .
+ */
 class Adaptor : public QObject
 {
         Q_OBJECT
         Q_CLASSINFO("D-Bus Interface", "org.kde.kaccessibleapp.Adaptor")
     public:
-        explicit Adaptor(QObject* parent = 0) : QObject(parent) {}
+        explicit Adaptor(QObject *parent = 0) : QObject(parent) {}
         virtual ~Adaptor() {}
+
     Q_SIGNALS:
-        void focusChanged(/*QObject *obj,*/ int x, int y, int width, int height);
+
+        /**
+         * This signal is emitted if the position of the focus changed. This can
+         * be used by client-applications to implement focus tracking.
+         *
+         * The \p px and \p py arguments can be either undefined, both will be -1, or
+         * can define the exact focus point. Additionally provided is a rectangle
+         * defined with the start-point \p rx and \p rx and the dimension \p rwidth
+         * and \p rheight . That rectangle defines the focus area.
+         */
+        void focusChanged(int px, int py, int rx, int ry, int rwidth, int rheight);
+
     public Q_SLOTS:
-        void setFocusChanged(/*QObject *obj,*/ int x, int y, int width, int height) { emit focusChanged(/*obj,*/ x, y, width, height); }
+
+        /**
+         * This method can be called to emit the \a focusChanged signal above.
+         */
+        void setFocusChanged(int px, int py, int rx, int ry, int rwidth, int rheight);
 };
 
+/**
+ * The unique application instance that will be responsible for redirecting
+ * stuff around.
+ */
 class KAccessibleApp : public KUniqueApplication
 {
         Q_OBJECT
