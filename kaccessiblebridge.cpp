@@ -145,6 +145,8 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
         default:
             break;
     }
+
+    delete childInterface;
 }
 
 void Bridge::focusChanged(int px, int py, int rx, int ry, int rwidth, int rheight)
