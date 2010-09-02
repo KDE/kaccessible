@@ -118,11 +118,6 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
         case QAccessible::PopupMenuEnd:
             d->m_currentPopupMenu = 0;
             break;
-
-        //FIX kwrite to send out better events then only StateChanged...
-        case QAccessible::StateChanged:
-            // fall through...
-
         case QAccessible::Focus: {
             // abort if the focus would interrupt a popupmenu
             if(d->m_currentPopupMenu && !childInterface)
