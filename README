@@ -1,4 +1,5 @@
-kaccessible implements a QAccessibleBridgePlugin to provide accessibility services like focus tracking.
+kaccessible implements a QAccessibleBridgePlugin to provide accessibility services like
+focus tracking and a screenreader.
 
 Components;
 * kaccessibleapp is a dbus activation service that acts as proxy.
@@ -9,13 +10,13 @@ You need to call "export QT_ACCESSIBILITY=1" before you start the application th
 accessible. Per default this is disabled cause QAccessible can slow down things.
 
 Used in;
-* KMag's "Follow Focus" Mode.
-* soon; KWin zoom and magnifier plugins.
+* KMag's "Follow Focus" Mode. Start KMagnifier and press F2 to switch to that mode.
+* KWin's Zoom Plugin. Enable the "Follow Focus" mode in the effect settings.
+* Screenreader. Enable the screenreader via "qdbus org.kde.kaccessibleapp /Adaptor setSpeechEnabled true"
 
 Todo;
 * Implement QAccessibleInterface's if needed for;
   * Konqueror, Dolphin, KHtml, WebKit
-  * KWrite's KateInternal text-canvas
   * Plasma desktop, panel and kickoff
 * Look how to better integrate Gtk-apps (qtatspi)
 * Integrate Jovie/opentts/Orca
