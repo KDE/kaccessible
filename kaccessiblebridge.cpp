@@ -134,9 +134,13 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
 
         case QAccessible::Focus: {
             // abort if the focus would interrupt a popupmenu
-            //if(d->m_currentPopupMenu && !childInterface) {
-            //    return;
-            //}
+            if(d->m_currentPopupMenu) {
+                bool ok = false;
+                for(QObject* obj = interface->object(); obj; obj = obj->parent())
+                    if(obj == d->m_currentPopupMenu) { ok = true; break; }
+                if(!ok)
+                    return;
+            }
             
             // the rectangle that has focus
             QRect r = interface->rect(child);
