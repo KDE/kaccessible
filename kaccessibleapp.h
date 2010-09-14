@@ -31,8 +31,8 @@ class Adaptor : public QObject
         Q_OBJECT
         Q_CLASSINFO("D-Bus Interface", "org.kde.kaccessibleapp.Adaptor")
     public:
-        explicit Adaptor(QObject *parent = 0) : QObject(parent) {}
-        virtual ~Adaptor() {}
+        explicit Adaptor(QObject *parent = 0);
+        virtual ~Adaptor();
 
     Q_SIGNALS:
 
@@ -52,7 +52,30 @@ class Adaptor : public QObject
         /**
          * This method can be called to emit the \a focusChanged signal above.
          */
-        void setFocusChanged(int px, int py, int rx, int ry, int rwidth, int rheight);
+        void setFocusChanged(int px, int py, int rx, int ry, int rwidth, int rheight, const QString& text = QString());
+
+        /**
+         * Text-to-Speech interface.
+         */
+        void sayText(const QString& text);
+
+        /**
+         * Returns true if automatic text-to-speech is enabled or false if disabled.
+         */
+        bool speechEnabled() const;
+
+        /**
+         * Enable or disable automatic text-to-speech.
+         * 
+         * If enabled then for example the text passed as argument at the \a setFocusChanged method
+         * will be read. Note that this has no effect on \a sayText which is always enabled. This
+         * setting only enables/disables automatic screen reading.
+         */
+        void setSpeechEnabled(bool enabled);
+        
+    private:
+        class Private;
+        Private *const d;
 };
 
 /**

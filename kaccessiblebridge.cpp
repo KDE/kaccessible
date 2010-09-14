@@ -24,6 +24,7 @@
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusInterface>
+#include <QDBusPendingCall>
 #include <kdebug.h>
 
 Q_EXPORT_PLUGIN(BridgePlugin)
@@ -104,12 +105,16 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
         return;
     }
 
-    QAccessibleInterface *childInterface = 0;
-    if(child > 0) {
-        interface->navigate(QAccessible::Child, child, &childInterface);
-    }
+    QString name = interface->text(QAccessible::Name, child);
+    //QString description = interface->text(QAccessible::Description, child);
+    //QString value = interface->text(QAccessible::Value, child);
+    //QString help = interface->text(QAccessible::Help, child);
+    //QString accelerator = interface->text(QAccessible::Accelerator, child);
 
-    kDebug() << "reason=" << reasonToString(reason) << "child=" << child << "childrect=" << interface->rect(child) << "state=" << interface->state(child) << "object=" << (interface->object() ? QString("%1 (%2)").arg(interface->object()->objectName()).arg(interface->object()->metaObject()->className()) : "NULL") << "childInterface=" << (childInterface && childInterface->object() ? QString("%1 (%2)").arg(childInterface->object()->objectName()).arg(childInterface->object()->metaObject()->className()) : "NULL");
+    QAccessibleInterface *childInterface = 0;
+    //if(child > 0) interface->navigate(QAccessible::Child, child, &childInterface);
+
+    kDebug() << "reason=" << reasonToString(reason) << "name=" << name << "child=" << child << "childrect=" << interface->rect(child) << "state=" << interface->state(child) << "object=" << (interface->object() ? QString("%1 (%2)").arg(interface->object()->objectName()).arg(interface->object()->metaObject()->className()) : "NULL") << "childInterface=" << (childInterface && childInterface->object() ? QString("%1 (%2)").arg(childInterface->object()->objectName()).arg(childInterface->object()->metaObject()->className()) : "NULL");
 
     switch(reason) {
         case QAccessible::PopupMenuStart:
@@ -118,20 +123,29 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
         case QAccessible::PopupMenuEnd:
             d->m_currentPopupMenu = 0;
             break;
+
+        //case QAccessible::DialogEnd:
+        //case QAccessible::DialogStart:
+        
+        case QAccessible::ValueChanged:
+            //QDBusInterface iface("org.kde.kaccessibleapp","/Adaptor");
+            //iface.asyncCall("setValueChanged", );
+            break;
+
         case QAccessible::Focus: {
             // abort if the focus would interrupt a popupmenu
-            if(d->m_currentPopupMenu && !childInterface) {
-                return;
-            }
-
+            //if(d->m_currentPopupMenu && !childInterface) {
+            //    return;
+            //}
+            
             // the rectangle that has focus
             QRect r = interface->rect(child);
 
             // an optional exact point that has the focus
             QPoint p(-1,-1);            
-            if(r.width() == 0 && r.height() == 0 && childInterface) {
+            if(child > 0 && r.width() == 0 && r.height() == 0) {
                 p = r.topLeft();
-                r = childInterface->rect(0);
+                r = interface->rect(0);
             }
 
             // here we could add hacks to special case applications/widgets :)
@@ -141,7 +155,7 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
             // if(w) r = QRect(w->mapToGlobal(QPoint(w->x(), w->y())), w->size());
 
             QDBusInterface iface("org.kde.kaccessibleapp","/Adaptor");
-            iface.asyncCall("setFocusChanged", p.x(), p.y(), r.x(), r.y(), r.width(), r.height());
+            iface.asyncCall("setFocusChanged", p.x(), p.y(), r.x(), r.y(), r.width(), r.height(), name);
         } break;
         default:
             break;

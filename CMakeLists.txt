@@ -59,9 +59,15 @@ dbus_add_activation_service(org.kde.kaccessible.service.in)
 
 ##################################################################
 
+macro_optional_find_package(Speechd)
+if(SPEECHD_FOUND)
+  set(SPEECH_LIB speechd)
+  add_definitions(-DSPEECHD_FOUND)
+endif(SPEECHD_FOUND)
+
 set(kaccessibleapp_SRCS kaccessibleapp.cpp)
 qt4_wrap_cpp(kaccessibleapp_SRCS kaccessibleapp.h)
 add_executable(kaccessibleapp ${kaccessibleapp_SRCS})
 #INCLUDE_DIRECTORIES(. .. ${QT_INCLUDES} ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(kaccessibleapp ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY} ${KDE4_KDEUI_LIBS} ${QT_QTDBUS_LIBRARY})
+target_link_libraries(kaccessibleapp ${QT_QTCORE_LIBRARY} ${QT_QTGUI_LIBRARY} ${KDE4_KDEUI_LIBS} ${QT_QTDBUS_LIBRARY} ${SPEECH_LIB})
 install(TARGETS kaccessibleapp RUNTIME DESTINATION ${LIBEXEC_INSTALL_DIR})
