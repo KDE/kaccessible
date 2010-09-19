@@ -64,7 +64,7 @@ Bridge::Bridge(BridgePlugin *plugin, const QString& key)
     , QAccessibleBridge()
     , d(new Private(plugin, key))
 {
-    qDBusRegisterMetaType<KAccessibleDBusInterface>();
+    qDBusRegisterMetaType<KAccessibleInterface>();
 }
 
 Bridge::~Bridge()
@@ -109,7 +109,7 @@ QString reasonToString(int reason)
     return QString::number(reason);
 }
 
-QString stateToString(QFlags<QAccessible::StateFlag> flags)
+QString stateToString(QAccessible::State flags)
 {
     QString result;
     if(flags & QAccessible::Animated) result += "Animated ";
@@ -178,7 +178,7 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
     const QString name = interface->text(QAccessible::Name, child);
     const QString description = interface->text(QAccessible::Description, child);
 
-    KAccessibleDBusInterface dbusIface;
+    KAccessibleInterface dbusIface;
     dbusIface.name = name;
     dbusIface.description = description.isEmpty() ? interface->text(QAccessible::Help, child) : description;
     dbusIface.value = interface->text(QAccessible::Value, child);
@@ -187,25 +187,25 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
     dbusIface.state = interface->state(child);
 
     if(obj->inherits("QMenu") /*|| (!d->m_popupMenus.isEmpty() && obj->inherits("QAction"))*/)
-        dbusIface.type = KAccessibleDBusInterface::Menu;
+        dbusIface.type = KAccessibleInterface::Menu;
     else if(obj->inherits("QAbstractButton"))
-        dbusIface.type = KAccessibleDBusInterface::Button;
+        dbusIface.type = KAccessibleInterface::Button;
     else if(obj->inherits("QComboBox"))
-        dbusIface.type = KAccessibleDBusInterface::Combobox;
+        dbusIface.type = KAccessibleInterface::Combobox;
     else if(obj->inherits("QCheckBox"))
-        dbusIface.type = KAccessibleDBusInterface::Checkbox;
+        dbusIface.type = KAccessibleInterface::Checkbox;
     else if(obj->inherits("QRadioButton"))
-        dbusIface.type = KAccessibleDBusInterface::Radiobutton;
+        dbusIface.type = KAccessibleInterface::Radiobutton;
     else if(obj->inherits("QLabel"))
-        dbusIface.type = KAccessibleDBusInterface::Label;
+        dbusIface.type = KAccessibleInterface::Label;
     else if(obj->inherits("QAbstractItemView"))
-        dbusIface.type = KAccessibleDBusInterface::Listview;
+        dbusIface.type = KAccessibleInterface::Listview;
     else if(obj->inherits("QDialog") || obj->inherits("QMainWindow"))
-        dbusIface.type = KAccessibleDBusInterface::Dialog;
+        dbusIface.type = KAccessibleInterface::Dialog;
     else if(obj->inherits("QWidget"))
-        dbusIface.type = KAccessibleDBusInterface::Widget;
+        dbusIface.type = KAccessibleInterface::Widget;
     else
-        dbusIface.type = KAccessibleDBusInterface::Object;
+        dbusIface.type = KAccessibleInterface::Object;
 
     QAccessibleInterface *childInterface = 0;
     //if(child > 0) interface->navigate(QAccessible::Child, child, &childInterface);

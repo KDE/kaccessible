@@ -227,7 +227,7 @@ Adaptor::Adaptor(QObject *parent)
     : QObject(parent)
     , d(new Private)
 {
-    qDBusRegisterMetaType<KAccessibleDBusInterface>();
+    qDBusRegisterMetaType<KAccessibleInterface>();
 }
 
 Adaptor::~Adaptor()
@@ -235,27 +235,29 @@ Adaptor::~Adaptor()
     delete d;
 }
         
-void Adaptor::setFocusChanged(const KAccessibleDBusInterface& iface)
+void Adaptor::setFocusChanged(const KAccessibleInterface& iface)
 {
     int px = -1;
     int py = -1;
     QRect r = iface.rect;
     emit focusChanged(px, py, r.x(), r.y(), r.width(), r.height());
     QString text = iface.name;
+    /*
     if(!iface.accelerator.isEmpty()) {
         QString s = iface.accelerator;
         s = s.replace("+"," ");
         text += " " + s;
     }
+    */
     sayText(text);
 }
 
-void Adaptor::setValueChanged(const KAccessibleDBusInterface& iface)
+void Adaptor::setValueChanged(const KAccessibleInterface& iface)
 {
     sayText(iface.value);
 }
 
-void Adaptor::setAlert(const KAccessibleDBusInterface& iface)
+void Adaptor::setAlert(const KAccessibleInterface& iface)
 {
     Speaker::instance()->cancel();
     sayText(iface.name, int(Speaker::Message));

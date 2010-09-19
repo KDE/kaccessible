@@ -22,37 +22,45 @@
 #include <QAccessibleInterface>
 #include <QDBusArgument>
 
-struct KAccessibleDBusInterface
+/**
+ * This class represents the QAccessibleInterface informations of
+ * a QObject transported over dbus from the \a Bridge dbus-service to
+ * the \a KAccessibleApp application.
+ */
+class KAccessibleInterface
 {
-    QString name;
-    QString description;
-    QString value;
-    QString accelerator;
-    QRect rect;
+    public:
+        QString name;
+        QString description;
+        QString value;
+        QString accelerator;
+        QRect rect;
 
-    //QString objectName;
-    //QString className;
+        //QString objectName;
+        //QString className;
 
-    enum Type {
-        Object,
-        Widget,
-        Dialog,
-        Menu,
-        Button,
-        Combobox,
-        Checkbox,
-        Radiobutton,
-        Label,
-        Listview
-    };
-    Type type;
-    
-    QAccessible::State state;
+        enum Type {
+            Object,
+            Widget,
+            Dialog,
+            Menu,
+            Button,
+            Combobox,
+            Checkbox,
+            Radiobutton,
+            Label,
+            Listview
+        };
+        Type type;
+
+        QAccessible::State state;
+
+        explicit KAccessibleInterface() : type(Object), state(QFlags<QAccessible::StateFlag>()) {}
 };
 
-Q_DECLARE_METATYPE(KAccessibleDBusInterface)
+Q_DECLARE_METATYPE(KAccessibleInterface)
 
-QDBusArgument &operator<<(QDBusArgument &argument, const KAccessibleDBusInterface &a)
+QDBusArgument &operator<<(QDBusArgument &argument, const KAccessibleInterface &a)
 {
     argument.beginStructure();
     argument << a.name << a.description << a.value << a.accelerator << a.rect << int(a.type) << int(a.state);
@@ -60,12 +68,12 @@ QDBusArgument &operator<<(QDBusArgument &argument, const KAccessibleDBusInterfac
     return argument;
 }
 
-const QDBusArgument &operator>>(const QDBusArgument &argument, KAccessibleDBusInterface &a)
+const QDBusArgument &operator>>(const QDBusArgument &argument, KAccessibleInterface &a)
 {
     argument.beginStructure();
     int type, state;
     argument >> a.name >> a.description >> a.value >> a.accelerator >> a.rect >> type >> state;
-    a.type = (KAccessibleDBusInterface::Type) type;
+    a.type = (KAccessibleInterface::Type) type;
     a.state = QAccessible::State(state);
     argument.endStructure();
     return argument;

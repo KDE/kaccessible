@@ -61,7 +61,7 @@ class Speaker : public QObject
         Private *const d;
 };
 
-class KAccessibleDBusInterface;
+class KAccessibleInterface;
 
 /**
  * The Adaptor class provides a dbus interface for the KAccessibleApp .
@@ -96,17 +96,17 @@ class Adaptor : public QObject
          * This method is called if the focus changed.
          * The method emits the \a focusChanged signal above.
          */
-        void setFocusChanged(const KAccessibleDBusInterface& iface);
+        void setFocusChanged(const KAccessibleInterface& iface);
 
         /**
          * This method is called if a value changed.
          */
-        void setValueChanged(const KAccessibleDBusInterface& iface);
+        void setValueChanged(const KAccessibleInterface& iface);
 
         /**
          * This method is called if an alert happens.
          */
-        void setAlert(const KAccessibleDBusInterface& iface);
+        void setAlert(const KAccessibleInterface& iface);
 
         /**
          * This method can be called to use the text-to-speech interface to say something.
