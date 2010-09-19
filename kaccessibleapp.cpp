@@ -16,12 +16,21 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
+
 #include "kaccessibleapp.h"
+#include "kaccessibleinterface.h"
 
 #include <QDBusConnection>
 #include <QDBusInterface>
 #include <QDBusPendingCall>
+#include <QDBusArgument>
+#include <QDBusMetaType>
 #include <QTimer>
+#include <QStack>
+#include <QFile>
+#include <QTextStream>
+#include <QMutex>
+#include <QMutexLocker>
 #include <kconfig.h>
 #include <kconfiggroup.h>
 #include <klocale.h>
@@ -33,47 +42,184 @@
 #include <libspeechd.h>
 #endif
 
-class Adaptor::Private
+Q_GLOBAL_STATIC(Speaker, speaker);
+
+class Speaker::Private
 {
     public:
-        bool m_speechEnabled;
-        QString m_sayed;
+        bool m_isSpeaking;
+        QStack< QPair<QString,Speaker::Priority> > m_sayStack;
+        QMutex m_mutex;
 #if defined(SPEECHD_FOUND)
         SPDConnection *m_connection;
 #endif
-
         explicit Private()
-            : m_speechEnabled(false)
+            : m_isSpeaking(false)
 #if defined(SPEECHD_FOUND)
             , m_connection(0)
 #endif
         {
+        }
+#if defined(SPEECHD_FOUND)
+        static void speechdCallback(size_t msg_id, size_t client_id, SPDNotificationType state)
+        {
+            Q_UNUSED(msg_id);
+            Q_UNUSED(client_id);
+            switch(state) {
+                case SPD_EVENT_BEGIN:
+                    Speaker::instance()->setSpeaking(true);
+                    break;
+                case SPD_EVENT_END:
+                    Speaker::instance()->setSpeaking(false);
+                    QTimer::singleShot(0, Speaker::instance(), SLOT(sayNext()));
+                    break;
+                case SPD_EVENT_CANCEL:
+                    Speaker::instance()->setSpeaking(false);
+                    Speaker::instance()->clearSayStack();
+                    break;
+                case SPD_EVENT_PAUSE:
+                    break;
+                case SPD_EVENT_RESUME:
+                    break;
+                case SPD_EVENT_INDEX_MARK:
+                    break;
+            }
+        }
+#endif
+};
+
+Speaker::Speaker()
+    : d(new Private)
+{
+}
+
+Speaker::~Speaker()
+{
+    disconnect();
+    delete d;
+}
+
+Speaker* Speaker::instance()
+{
+    return speaker();
+}
+
+bool Speaker::isConnected() const
+{
+#if defined(SPEECHD_FOUND)
+    return d->m_connection;
+#else
+    return true;
+#endif
+}
+
+void Speaker::disconnect()
+{
+#if defined(SPEECHD_FOUND)
+    if(d->m_connection) {
+        spd_set_notification_off(d->m_connection, SPD_BEGIN);
+        spd_set_notification_off(d->m_connection, SPD_END);
+        spd_set_notification_off(d->m_connection, SPD_CANCEL);
+        spd_set_notification_off(d->m_connection, SPD_PAUSE);
+        spd_set_notification_off(d->m_connection, SPD_RESUME);
+        d->m_connection->callback_begin = d->m_connection->callback_end = d->m_connection->callback_cancel = d->m_connection->callback_pause = d->m_connection->callback_resume = 0;
+        spd_close(d->m_connection);
+        d->m_connection = 0;
+        d->m_isSpeaking = false;
+        d->m_sayStack.clear();
+    }
+#endif
+}
+
+bool Speaker::reconnect()
+{
+    disconnect();
+
+#if defined(SPEECHD_FOUND)
+    d->m_connection = spd_open("kaccessible", "main", NULL, SPD_MODE_THREADED); //SPD_MODE_SINGLE);
+    if( ! d->m_connection) {
+        kWarning() << "Failed to connect with speech-dispatcher";
+        return false;
+    }
+
+    d->m_connection->callback_begin = d->m_connection->callback_end = d->m_connection->callback_cancel = d->m_connection->callback_pause = d->m_connection->callback_resume = Private::speechdCallback;
+    spd_set_notification_on(d->m_connection, SPD_BEGIN);
+    spd_set_notification_on(d->m_connection, SPD_END);
+    spd_set_notification_on(d->m_connection, SPD_CANCEL);
+    spd_set_notification_on(d->m_connection, SPD_PAUSE);
+    spd_set_notification_on(d->m_connection, SPD_RESUME);
+#endif
+    return true;
+}
+
+bool Speaker::isSpeaking() const
+{
+    return d->m_isSpeaking;
+}
+
+void Speaker::setSpeaking(bool speaking)
+{
+    d->m_isSpeaking = speaking;
+}
+
+void Speaker::cancel()
+{
+    QMutexLocker locker(&d->m_mutex);
+    d->m_sayStack.clear();
+#if defined(SPEECHD_FOUND)
+    if(d->m_connection) {
+        spd_cancel_all(d->m_connection);
+    }
+#endif
+}
+
+bool Speaker::say(const QString& text, Priority priority)
+{
+    QMutexLocker locker(&d->m_mutex);
+    if(!isConnected())
+        return false;
+    d->m_sayStack.push( QPair<QString,Speaker::Priority>(text,priority) );
+    if(!d->m_isSpeaking)
+        QTimer::singleShot(0, this, SLOT(sayNext()));
+    return true;
+}
+
+void Speaker::sayNext()
+{
+    QMutexLocker locker(&d->m_mutex);
+    if(d->m_sayStack.isEmpty()) {
+        return;
+    }
+    QPair<QString,Speaker::Priority> p = d->m_sayStack.pop();
+#if defined(SPEECHD_FOUND)
+    if(d->m_connection) {
+        SPDPriority spdpriority = (SPDPriority) p.second;
+        int msg_id  = spd_say(d->m_connection, spdpriority, p.first.toUtf8().data());
+        if(msg_id == -1) {
+            kWarning() << "Failed to say text=" << p.first;
+        }
+    }
+#else
+    //QDBusInterface iface("org.kde.jovie","/KSpeech");
+    //iface.asyncCall("say", text, 0);
+#endif
+}
+
+void Speaker::clearSayStack()
+{
+    d->m_sayStack.clear();
+}
+
+class Adaptor::Private
+{
+    public:
+        bool m_speechEnabled;
+        explicit Private()
+            : m_speechEnabled(false)
+        {
             KConfig config("kaccessibleapp");
             KConfigGroup group = config.group("Main");
             m_speechEnabled = group.readEntry("SpeechEnabled", m_speechEnabled);
-        }
-
-        ~Private()
-        {
-            disconnect();
-        }
-
-        void disconnect()
-        {
-#if defined(SPEECHD_FOUND)
-            if(m_connection) {
-                spd_close(m_connection);
-                m_connection = 0;
-            }
-#endif
-        }
-        void reconnect()
-        {
-            disconnect();
-#if defined(SPEECHD_FOUND)
-            m_connection = spd_open("kaccessible", "main", NULL, SPD_MODE_THREADED);
-            if(!m_connection) kWarning() << "Failed to connect with speech-dispatcher";
-#endif
         }
 };
 
@@ -81,6 +227,7 @@ Adaptor::Adaptor(QObject *parent)
     : QObject(parent)
     , d(new Private)
 {
+    qDBusRegisterMetaType<KAccessibleDBusInterface>();
 }
 
 Adaptor::~Adaptor()
@@ -88,31 +235,37 @@ Adaptor::~Adaptor()
     delete d;
 }
         
-void Adaptor::setFocusChanged(int px, int py, int rx, int ry, int rwidth, int rheight, const QString& text)
+void Adaptor::setFocusChanged(const KAccessibleDBusInterface& iface)
 {
-    emit focusChanged(px, py, rx, ry, rwidth, rheight);
-    if(d->m_speechEnabled && !text.isEmpty() && text != d->m_sayed) {
-        d->m_sayed = text;
-        sayText(text);
+    int px = -1;
+    int py = -1;
+    QRect r = iface.rect;
+    emit focusChanged(px, py, r.x(), r.y(), r.width(), r.height());
+    QString text = iface.name;
+    if(!iface.accelerator.isEmpty()) {
+        QString s = iface.accelerator;
+        s = s.replace("+"," ");
+        text += " " + s;
     }
+    sayText(text);
 }
 
-void Adaptor::sayText(const QString& text)
+void Adaptor::setValueChanged(const KAccessibleDBusInterface& iface)
 {
-    kDebug() << text;
-#if defined(SPEECHD_FOUND)
-    if(!d->m_connection) {
-        d->reconnect();
-        if(!d->m_connection)
-            return;
+    sayText(iface.value);
+}
+
+void Adaptor::setAlert(const KAccessibleDBusInterface& iface)
+{
+    Speaker::instance()->cancel();
+    sayText(iface.name, int(Speaker::Message));
+}
+
+void Adaptor::sayText(const QString& text, int priority)
+{
+    if(d->m_speechEnabled && !text.isEmpty() && (Speaker::instance()->isConnected() || Speaker::instance()->reconnect())) {
+        Speaker::instance()->say(text, Speaker::Priority(priority));
     }
-    SPDPriority spdpriority = SPD_TEXT;
-    spd_say(d->m_connection, spdpriority, text.toUtf8().data());
-#endif
-#if 0
-    QDBusInterface iface("org.kde.jovie","/KSpeech");
-    iface.asyncCall("say", text, 0);
-#endif
 }
 
 bool Adaptor::speechEnabled() const
@@ -122,9 +275,10 @@ bool Adaptor::speechEnabled() const
 
 void Adaptor::setSpeechEnabled(bool enabled)
 {
+    d->m_speechEnabled = enabled;
+
     KConfig config("kaccessibleapp");
     KConfigGroup group = config.group("Main");
-    d->m_speechEnabled = enabled;
     group.writeEntry("SpeechEnabled", d->m_speechEnabled);
 }
         

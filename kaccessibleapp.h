@@ -24,7 +24,47 @@
 #include <KUniqueApplication>
 
 /**
- * THe Adaptor class provides a dbus interface for the KAccessibleApp .
+ * Highlevel text-to-speech interface.
+ */
+class Speaker : public QObject
+{
+        Q_OBJECT
+    public:
+        static Speaker* instance();
+
+        bool isConnected() const;
+        void disconnect();
+        bool reconnect();
+
+        bool isSpeaking() const;
+        void setSpeaking(bool speaking);
+
+        void cancel();
+
+        enum Priority {
+            Important = 1,
+            Message = 2,
+            Text = 3,
+            Notification = 4,
+            Progress = 5
+        };
+
+        bool say(const QString& text, Priority priority = Text);
+
+        explicit Speaker();
+        ~Speaker();
+    private slots:
+        void sayNext();
+        void clearSayStack();
+    private:
+        class Private;
+        Private *const d;
+};
+
+class KAccessibleDBusInterface;
+
+/**
+ * The Adaptor class provides a dbus interface for the KAccessibleApp .
  */
 class Adaptor : public QObject
 {
@@ -47,17 +87,31 @@ class Adaptor : public QObject
          */
         void focusChanged(int px, int py, int rx, int ry, int rwidth, int rheight);
 
+        //void valueChanged(const QString& name, const QString& value);
+        //void alert(const QString& name);
+
     public Q_SLOTS:
 
         /**
-         * This method can be called to emit the \a focusChanged signal above.
+         * This method is called if the focus changed.
+         * The method emits the \a focusChanged signal above.
          */
-        void setFocusChanged(int px, int py, int rx, int ry, int rwidth, int rheight, const QString& text = QString());
+        void setFocusChanged(const KAccessibleDBusInterface& iface);
 
         /**
-         * Text-to-Speech interface.
+         * This method is called if a value changed.
          */
-        void sayText(const QString& text);
+        void setValueChanged(const KAccessibleDBusInterface& iface);
+
+        /**
+         * This method is called if an alert happens.
+         */
+        void setAlert(const KAccessibleDBusInterface& iface);
+
+        /**
+         * This method can be called to use the text-to-speech interface to say something.
+         */
+        void sayText(const QString& text, int priority = 3);
 
         /**
          * Returns true if automatic text-to-speech is enabled or false if disabled.
@@ -65,13 +119,17 @@ class Adaptor : public QObject
         bool speechEnabled() const;
 
         /**
-         * Enable or disable automatic text-to-speech.
+         * Enable or disable text-to-speech.
          * 
          * If enabled then for example the text passed as argument at the \a setFocusChanged method
-         * will be read. Note that this has no effect on \a sayText which is always enabled. This
-         * setting only enables/disables automatic screen reading.
+         * will be read.
          */
         void setSpeechEnabled(bool enabled);
+
+        //void cancelSpeech();
+        //void speechPaused();
+        //void pauseSpeech();
+        //void resumeSpeech();
         
     private:
         class Private;

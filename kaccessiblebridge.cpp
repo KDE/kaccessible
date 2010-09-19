@@ -16,7 +16,9 @@
  * the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
  * Boston, MA 02110-1301, USA.
  */
+
 #include "kaccessiblebridge.h"
+#include "kaccessibleinterface.h"
 
 #include <QAccessibleInterface>
 #include <QWidget>
@@ -25,6 +27,8 @@
 #include <QDBusConnectionInterface>
 #include <QDBusInterface>
 #include <QDBusPendingCall>
+#include <QDBusArgument>
+#include <QDBusMetaType>
 #include <kdebug.h>
 
 Q_EXPORT_PLUGIN(BridgePlugin)
@@ -35,14 +39,23 @@ class Bridge::Private
         BridgePlugin *m_plugin;
         const QString m_key;
         QAccessibleInterface *m_root;
-        QObject *m_currentPopupMenu;
-        
+        QDBusInterface *m_app;
+        QList<QObject*> m_popupMenus;
+        QRect m_lastFocusRect;
+        QString m_lastFocusName;
+            
         Private(BridgePlugin *plugin, const QString& key)
             : m_plugin(plugin)
             , m_key(key)
             , m_root(0)
-            , m_currentPopupMenu(0)
+            , m_app(0)
+            , m_lastFocusRect(QRect(0,0,0,0))
         {
+        }
+        
+        ~Private()
+        {
+            delete m_app;
         }
 };
 
@@ -51,6 +64,7 @@ Bridge::Bridge(BridgePlugin *plugin, const QString& key)
     , QAccessibleBridge()
     , d(new Private(plugin, key))
 {
+    qDBusRegisterMetaType<KAccessibleDBusInterface>();
 }
 
 Bridge::~Bridge()
@@ -95,6 +109,41 @@ QString reasonToString(int reason)
     return QString::number(reason);
 }
 
+QString stateToString(QFlags<QAccessible::StateFlag> flags)
+{
+    QString result;
+    if(flags & QAccessible::Animated) result += "Animated ";
+    if(flags & QAccessible::Busy) result += "Busy ";
+    if(flags & QAccessible::Checked) result += "Checked ";
+    if(flags & QAccessible::Collapsed) result += "Collapsed ";
+    if(flags & QAccessible::DefaultButton) result += "DefaultButton ";
+    if(flags & QAccessible::Expanded) result += "Expanded ";
+    if(flags & QAccessible::ExtSelectable) result += "ExtSelectable ";
+    if(flags & QAccessible::Focusable) result += "Focusable ";
+    if(flags & QAccessible::Focused) result += "Focused ";
+    if(flags & QAccessible::HasPopup) result += "HasPopup ";
+    if(flags & QAccessible::HotTracked) result += "HotTracked ";
+    if(flags & QAccessible::Invisible) result += "Invisible ";
+    if(flags & QAccessible::Linked) result += "Linked ";
+    if(flags & QAccessible::Marqueed) result += "Marqueed ";
+    if(flags & QAccessible::Mixed) result += "Mixed ";
+    if(flags & QAccessible::Modal) result += "Modal ";
+    if(flags & QAccessible::Movable) result += "Movable ";
+    if(flags & QAccessible::MultiSelectable) result += "MultiSelectable ";
+    if(flags & QAccessible::Normal) result += "Normal ";
+    if(flags & QAccessible::Offscreen) result += "Offscreen ";
+    if(flags & QAccessible::Pressed) result += "Pressed ";
+    if(flags & QAccessible::Protected) result += "Protected ";
+    if(flags & QAccessible::ReadOnly) result += "ReadOnly ";
+    if(flags & QAccessible::Selectable) result += "Selectable ";
+    if(flags & QAccessible::Selected) result += "Selected ";
+    if(flags & QAccessible::SelfVoicing) result += "SelfVoicing ";
+    if(flags & QAccessible::Sizeable) result += "Sizeable ";
+    if(flags & QAccessible::Traversed) result += "Traversed ";
+    if(flags & QAccessible::Unavailable) result += "Unavailable ";
+    return result.trimmed();
+}
+
 void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interface, int child)
 {
     if(!d->m_root) {
@@ -105,67 +154,131 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
         return;
     }
 
-    QString name = interface->text(QAccessible::Name, child);
-    //QString description = interface->text(QAccessible::Description, child);
-    //QString value = interface->text(QAccessible::Value, child);
-    //QString help = interface->text(QAccessible::Help, child);
-    //QString accelerator = interface->text(QAccessible::Accelerator, child);
+    if(!d->m_app) {
+        d->m_app = new QDBusInterface("org.kde.kaccessibleapp","/Adaptor");
+        if(d->m_app->isValid())
+            kDebug() << "Connected with the org.kde.kaccessibleapp dbus-service";
+    }
+
+    if(d->m_app->lastError().isValid()) {
+        kDebug() << "DBus error:" << d->m_app->lastError().name() << d->m_app->lastError().message();
+        delete d->m_app;
+        d->m_app = 0;
+        return;
+    }
+
+    if(!d->m_app->isValid()) {
+        kDebug() << "Failed to connect with the org.kde.kaccessibleapp dbus-service";
+        delete d->m_app;
+        d->m_app = 0;
+        return;
+    }
+
+    QObject *obj = interface->object();
+    const QString name = interface->text(QAccessible::Name, child);
+    const QString description = interface->text(QAccessible::Description, child);
+
+    KAccessibleDBusInterface dbusIface;
+    dbusIface.name = name;
+    dbusIface.description = description.isEmpty() ? interface->text(QAccessible::Help, child) : description;
+    dbusIface.value = interface->text(QAccessible::Value, child);
+    dbusIface.accelerator = interface->text(QAccessible::Accelerator, child);
+    dbusIface.rect = interface->rect(child);
+    dbusIface.state = interface->state(child);
+
+    if(obj->inherits("QMenu") /*|| (!d->m_popupMenus.isEmpty() && obj->inherits("QAction"))*/)
+        dbusIface.type = KAccessibleDBusInterface::Menu;
+    else if(obj->inherits("QAbstractButton"))
+        dbusIface.type = KAccessibleDBusInterface::Button;
+    else if(obj->inherits("QComboBox"))
+        dbusIface.type = KAccessibleDBusInterface::Combobox;
+    else if(obj->inherits("QCheckBox"))
+        dbusIface.type = KAccessibleDBusInterface::Checkbox;
+    else if(obj->inherits("QRadioButton"))
+        dbusIface.type = KAccessibleDBusInterface::Radiobutton;
+    else if(obj->inherits("QLabel"))
+        dbusIface.type = KAccessibleDBusInterface::Label;
+    else if(obj->inherits("QAbstractItemView"))
+        dbusIface.type = KAccessibleDBusInterface::Listview;
+    else if(obj->inherits("QDialog") || obj->inherits("QMainWindow"))
+        dbusIface.type = KAccessibleDBusInterface::Dialog;
+    else if(obj->inherits("QWidget"))
+        dbusIface.type = KAccessibleDBusInterface::Widget;
+    else
+        dbusIface.type = KAccessibleDBusInterface::Object;
 
     QAccessibleInterface *childInterface = 0;
     //if(child > 0) interface->navigate(QAccessible::Child, child, &childInterface);
 
-    kDebug() << "reason=" << reasonToString(reason) << "name=" << name << "child=" << child << "childrect=" << interface->rect(child) << "state=" << interface->state(child) << "object=" << (interface->object() ? QString("%1 (%2)").arg(interface->object()->objectName()).arg(interface->object()->metaObject()->className()) : "NULL") << "childInterface=" << (childInterface && childInterface->object() ? QString("%1 (%2)").arg(childInterface->object()->objectName()).arg(childInterface->object()->metaObject()->className()) : "NULL");
-
     switch(reason) {
-        case QAccessible::PopupMenuStart:
-            d->m_currentPopupMenu = interface->object();
-            break;
-        case QAccessible::PopupMenuEnd:
-            d->m_currentPopupMenu = 0;
-            break;
+        case QAccessible::PopupMenuStart: {
+            d->m_popupMenus.append(obj);
+        } break;
+        case QAccessible::PopupMenuEnd: {
+            const int index = d->m_popupMenus.lastIndexOf(obj);
+            if(index >= 0) d->m_popupMenus.removeAt(index);
+        } break;
 
-        //case QAccessible::DialogEnd:
-        //case QAccessible::DialogStart:
-        
-        case QAccessible::ValueChanged:
-            //QDBusInterface iface("org.kde.kaccessibleapp","/Adaptor");
-            //iface.asyncCall("setValueChanged", );
-            break;
+        case QAccessible::Alert: {
+            //kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name;
+            d->m_app->asyncCall("setAlert", qVariantFromValue(dbusIface));
+        } break;
+
+        case QAccessible::DialogStart: {
+            kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name;
+            //d->m_app->asyncCall("sayText", name);
+        } break;
+        case QAccessible::DialogEnd: {
+            kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name;
+            //d->m_app->asyncCall("sayText", name);
+        } break;
+
+        case QAccessible::NameChanged: {
+            kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name;
+            //d->m_app->asyncCall("sayText", name);
+        } break;
+        case QAccessible::ValueChanged: {
+            QString value = interface->text(QAccessible::Value, child);
+            kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name << "value=" << value;
+            d->m_app->asyncCall("setValueChanged", qVariantFromValue(dbusIface));
+        } break;
+        case QAccessible::StateChanged: {
+            kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name << "state=" << stateToString(dbusIface.state);
+        } break;
 
         case QAccessible::Focus: {
             // abort if the focus would interrupt a popupmenu
-            if(d->m_currentPopupMenu) {
+            if(!d->m_popupMenus.isEmpty()) {
                 bool ok = false;
-                for(QObject* obj = interface->object(); obj; obj = obj->parent())
-                    if(obj == d->m_currentPopupMenu) { ok = true; break; }
+                QObject* lastPopupMenu = d->m_popupMenus.last();
+                for(QObject* o = obj; o; o = o->parent())
+                    if(o == lastPopupMenu) { ok = true; break; }
                 if(!ok)
                     return;
             }
-            
-            // the rectangle that has focus
-            QRect r = interface->rect(child);
 
-            // an optional exact point that has the focus
-            QPoint p(-1,-1);            
-            if(child > 0 && r.width() == 0 && r.height() == 0) {
-                p = r.topLeft();
-                r = interface->rect(0);
-            }
+            // don't emit the focus changed signal if the focus didn't really changed since last time
+            if(dbusIface.rect == d->m_lastFocusRect && dbusIface.name == d->m_lastFocusName)
+                return;
+            d->m_lastFocusRect = dbusIface.rect;
+            d->m_lastFocusName = dbusIface.name;
 
             // here we could add hacks to special case applications/widgets :)
             //
-            // QWidget *w = childInterface ? dynamic_cast<QWidget*>(childInterface->object()) : 0;
-            // if(!w) w = dynamic_cast<QWidget*>(interface->object());
+            // QWidget *w = childInterface ? dynamic_cast<QWidget*>(childobj) : 0;
+            // if(!w) w = dynamic_cast<QWidget*>(obj);
             // if(w) r = QRect(w->mapToGlobal(QPoint(w->x(), w->y())), w->size());
 
-            QDBusInterface iface("org.kde.kaccessibleapp","/Adaptor");
-            iface.asyncCall("setFocusChanged", p.x(), p.y(), r.x(), r.y(), r.width(), r.height(), name);
+            kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name << "rect=" << dbusIface.rect;
+            d->m_app->asyncCall("setFocusChanged", qVariantFromValue(dbusIface));
         } break;
         default:
+            kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name;
             break;
     }
 
     delete childInterface;
+    //delete d->m_app; d->m_app = 0;
 }
 
 void Bridge::focusChanged(int px, int py, int rx, int ry, int rwidth, int rheight)
