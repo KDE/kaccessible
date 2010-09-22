@@ -72,78 +72,6 @@ Bridge::~Bridge()
     delete d;
 }
 
-QString reasonToString(int reason)
-{
-    switch(reason) {
-        case QAccessible::Focus: return "QAccessible::Focus";
-        case QAccessible::MenuCommand: return "QAccessible::MenuCommand";
-        case QAccessible::MenuStart: return "QAccessible::MenuStart";
-        case QAccessible::MenuEnd: return "QAccessible::MenuEnd";
-        case QAccessible::PopupMenuEnd: return "QAccessible::PopupMenuEnd";
-        case QAccessible::PopupMenuStart: return "QAccessible::PopupMenuStart";
-        case QAccessible::ScrollingEnd: return "QAccessible::ScrollingEnd";
-        case QAccessible::ScrollingStart: return "QAccessible::ScrollingStart";
-        case QAccessible::Selection: return "QAccessible::Selection";
-        case QAccessible::StateChanged: return "QAccessible::StateChanged";
-        case QAccessible::ValueChanged: return "QAccessible::ValueChanged";
-        case QAccessible::NameChanged: return "QAccessible::NameChanged";
-        case QAccessible::ObjectCreated: return "QAccessible::ObjectCreated";
-        case QAccessible::ObjectDestroyed: return "QAccessible::ObjectDestroyed";
-        //case QAccessible::ObjectHide: return "QAccessible::ObjectHide";
-        case QAccessible::ObjectReorder: return "QAccessible::ObjectReorder";
-        //case QAccessible::ObjectShow: return "QAccessible::ObjectShow";
-        case QAccessible::ParentChanged: return "QAccessible::ParentChanged";
-        case QAccessible::Alert: return "QAccessible::Alert";
-        case QAccessible::DefaultActionChanged: return "QAccessible::DefaultActionChanged";
-        case QAccessible::DialogEnd: return "QAccessible::DialogEnd";
-        case QAccessible::DialogStart: return "QAccessible::DialogStart";
-        case QAccessible::DragDropEnd: return "QAccessible::DragDropEnd";
-        case QAccessible::DragDropStart: return "QAccessible::DragDropStart";
-        case QAccessible::ForegroundChanged: return "QAccessible::ForegroundChanged";
-        case QAccessible::LocationChanged: return "QAccessible::LocationChanged";
-        case QAccessible::SelectionAdd: return "QAccessible::SelectionAdd";
-        case QAccessible::SelectionRemove: return "QAccessible::SelectionRemove";
-        case QAccessible::SelectionWithin: return "QAccessible::SelectionWithin";
-        default: break;
-    }
-    return QString::number(reason);
-}
-
-QString stateToString(QAccessible::State flags)
-{
-    QString result;
-    if(flags & QAccessible::Animated) result += "Animated ";
-    if(flags & QAccessible::Busy) result += "Busy ";
-    if(flags & QAccessible::Checked) result += "Checked ";
-    if(flags & QAccessible::Collapsed) result += "Collapsed ";
-    if(flags & QAccessible::DefaultButton) result += "DefaultButton ";
-    if(flags & QAccessible::Expanded) result += "Expanded ";
-    if(flags & QAccessible::ExtSelectable) result += "ExtSelectable ";
-    if(flags & QAccessible::Focusable) result += "Focusable ";
-    if(flags & QAccessible::Focused) result += "Focused ";
-    if(flags & QAccessible::HasPopup) result += "HasPopup ";
-    if(flags & QAccessible::HotTracked) result += "HotTracked ";
-    if(flags & QAccessible::Invisible) result += "Invisible ";
-    if(flags & QAccessible::Linked) result += "Linked ";
-    if(flags & QAccessible::Marqueed) result += "Marqueed ";
-    if(flags & QAccessible::Mixed) result += "Mixed ";
-    if(flags & QAccessible::Modal) result += "Modal ";
-    if(flags & QAccessible::Movable) result += "Movable ";
-    if(flags & QAccessible::MultiSelectable) result += "MultiSelectable ";
-    if(flags & QAccessible::Normal) result += "Normal ";
-    if(flags & QAccessible::Offscreen) result += "Offscreen ";
-    if(flags & QAccessible::Pressed) result += "Pressed ";
-    if(flags & QAccessible::Protected) result += "Protected ";
-    if(flags & QAccessible::ReadOnly) result += "ReadOnly ";
-    if(flags & QAccessible::Selectable) result += "Selectable ";
-    if(flags & QAccessible::Selected) result += "Selected ";
-    if(flags & QAccessible::SelfVoicing) result += "SelfVoicing ";
-    if(flags & QAccessible::Sizeable) result += "Sizeable ";
-    if(flags & QAccessible::Traversed) result += "Traversed ";
-    if(flags & QAccessible::Unavailable) result += "Unavailable ";
-    return result.trimmed();
-}
-
 void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interface, int child)
 {
     if(!d->m_root) {
@@ -184,12 +112,16 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
     dbusIface.value = interface->text(QAccessible::Value, child);
     dbusIface.accelerator = interface->text(QAccessible::Accelerator, child);
     dbusIface.rect = interface->rect(child);
+    dbusIface.objectName = interface->object()->objectName();
+    dbusIface.className = interface->object()->metaObject()->className();
     dbusIface.state = interface->state(child);
 
     if(obj->inherits("QMenu") /*|| (!d->m_popupMenus.isEmpty() && obj->inherits("QAction"))*/)
         dbusIface.type = KAccessibleInterface::Menu;
     else if(obj->inherits("QAbstractButton"))
         dbusIface.type = KAccessibleInterface::Button;
+    else if(obj->inherits("QLineEdit") || obj->inherits("QAbstractSpinBox"))
+        dbusIface.type = KAccessibleInterface::Edit;
     else if(obj->inherits("QComboBox"))
         dbusIface.type = KAccessibleInterface::Combobox;
     else if(obj->inherits("QCheckBox"))

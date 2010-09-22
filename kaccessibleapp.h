@@ -21,6 +21,8 @@
 
 #include <QDBusAbstractAdaptor>
 #include <QDebug>
+#include <KAction>
+#include <KMainWindow>
 #include <KUniqueApplication>
 
 /**
@@ -50,6 +52,12 @@ class Speaker : public QObject
         };
 
         bool say(const QString& text, Priority priority = Text);
+
+        char** modules() const;
+        char** voices() const;
+        
+        int voiceType() const;
+        void setVoiceType(int type);
 
         explicit Speaker();
         ~Speaker();
@@ -90,7 +98,19 @@ class Adaptor : public QObject
         //void valueChanged(const QString& name, const QString& value);
         //void alert(const QString& name);
 
+        /**
+         * This signal is emitted if speech was enabled/disabled using \a setSpeechEnabled .
+         */
+        void speechEnabledChanged(bool enabled);
+
+        /**
+         *
+         */
+        void notified(int reason, const KAccessibleInterface& iface);
+
     public Q_SLOTS:
+
+//void notify(int reason, const KAccessibleInterface& iface);
 
         /**
          * This method is called if the focus changed.
@@ -126,11 +146,36 @@ class Adaptor : public QObject
          */
         void setSpeechEnabled(bool enabled);
 
+        int voiceType() const;
+        void setVoiceType(int type);
+
         //void cancelSpeech();
         //void speechPaused();
         //void pauseSpeech();
         //void resumeSpeech();
         
+    private:
+        class Private;
+        Private *const d;
+};
+
+class KAccessibleApp;
+
+class MainWindow : public KMainWindow
+{
+        Q_OBJECT
+    public:
+        MainWindow(KAccessibleApp *app);
+        virtual ~MainWindow();
+        virtual void show();
+        virtual void hide();
+        bool queryExit();
+        bool queryClose();
+    private Q_SLOTS:
+        void notified(int reason, const KAccessibleInterface& iface);
+        void enableLogs(int state);
+        void enableReaderChanged(int state);
+        void voiceTypeChanged(int index);
     private:
         class Private;
         Private *const d;
@@ -147,6 +192,15 @@ class KAccessibleApp : public KUniqueApplication
     public:
         KAccessibleApp();
         virtual ~KAccessibleApp();
+        Adaptor* adaptor() const;
+        KAction* action(const QString &name) const;
+    private Q_SLOTS:
+        void enableScreenreader(bool enabled);
+        void speakClipboard();
+        void speakText();
+    private:
+        class Private;
+        Private *const d;
 };
 
 #endif
