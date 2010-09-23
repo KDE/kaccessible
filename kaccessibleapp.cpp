@@ -276,12 +276,12 @@ Adaptor::Adaptor(QObject *parent)
     , d(new Private)
 {
     qDBusRegisterMetaType<KAccessibleInterface>();
-    
-    KConfig config("kaccessibleapp");
+
+    KConfig config(QLatin1String( "kaccessibleapp" ));
     KConfigGroup group = config.group("Main");
     d->m_speechEnabled = group.readEntry("SpeechEnabled", d->m_speechEnabled);
 
-    
+
     const int prevVoiceType = Speaker::instance()->voiceType();
     const int newVoiceType = group.readEntry("VoiceType", prevVoiceType);
     if(prevVoiceType != newVoiceType)
@@ -292,7 +292,7 @@ Adaptor::~Adaptor()
 {
     delete d;
 }
-        
+
 void Adaptor::setFocusChanged(const KAccessibleInterface& iface)
 {
     int px = -1;
@@ -343,7 +343,7 @@ void Adaptor::setSpeechEnabled(bool enabled)
 
     d->m_speechEnabled = enabled;
 
-    KConfig config("kaccessibleapp");
+    KConfig config(QLatin1String( "kaccessibleapp" ));
     KConfigGroup group = config.group("Main");
     group.writeEntry("SpeechEnabled", d->m_speechEnabled);
 
@@ -364,7 +364,7 @@ void Adaptor::setVoiceType(int type)
     if(type == Speaker::instance()->voiceType())
         return;
 
-    KConfig config("kaccessibleapp");
+    KConfig config(QLatin1String( "kaccessibleapp" ));
     KConfigGroup group = config.group("Main");
     group.writeEntry("VoiceType", type);
 
@@ -384,33 +384,33 @@ KAccessibleApp::KAccessibleApp()
     : KUniqueApplication()
     , d(new Private)
 {
-    setWindowIcon(KIcon("preferences-desktop-accessibility"));
+    setWindowIcon(KIcon(QLatin1String( "preferences-desktop-accessibility" )));
     setQuitOnLastWindowClosed(false);
 
     d->m_adaptor = new Adaptor(this);
-    if( ! QDBusConnection::sessionBus().registerObject("/Adaptor", d->m_adaptor, QDBusConnection::ExportAllContents)) {
+    if( ! QDBusConnection::sessionBus().registerObject(QLatin1String( "/Adaptor" ), d->m_adaptor, QDBusConnection::ExportAllContents)) {
         kWarning() << "Unable to register KAccessibleApp to dbus";
         QTimer::singleShot(0, this, SLOT(quit()));
     } else {
         KToggleAction* enableScreenreaderAction = new KToggleAction(this);
         enableScreenreaderAction->setText(i18n("Enable Screenreader"));
-        enableScreenreaderAction->setIcon(KIcon("text-speak"));
+        enableScreenreaderAction->setIcon(KIcon(QLatin1String( "text-speak" )));
         enableScreenreaderAction->setChecked(d->m_adaptor->speechEnabled());
         connect(enableScreenreaderAction, SIGNAL(triggered(bool)), this, SLOT(enableScreenreader(bool)));
         connect(d->m_adaptor, SIGNAL(speechEnabledChanged(bool)), enableScreenreaderAction, SLOT(setChecked(bool)));
-        d->m_collection.insert("enableScreenreader", enableScreenreaderAction);
+        d->m_collection.insert(QLatin1String( "enableScreenreader" ), enableScreenreaderAction);
 
         KAction* speakTextAction = new KAction(this);
         speakTextAction->setText(i18n("Speak Text..."));
-        speakTextAction->setIcon(KIcon("text-plain"));
+        speakTextAction->setIcon(KIcon(QLatin1String( "text-plain" )));
         connect(speakTextAction, SIGNAL(triggered(bool)), this, SLOT(speakText()));
-        d->m_collection.insert("speakText", speakTextAction);
+        d->m_collection.insert(QLatin1String( "speakText" ), speakTextAction);
 
         KAction* speakClipboardAction = new KAction(this);
         speakClipboardAction->setText(i18n("Speak Clipboard"));
-        speakClipboardAction->setIcon(KIcon("klipper"));
+        speakClipboardAction->setIcon(KIcon(QLatin1String( "klipper" )));
         connect(speakClipboardAction, SIGNAL(triggered(bool)), this, SLOT(speakClipboard()));
-        d->m_collection.insert("speakClipboard", speakClipboardAction);
+        d->m_collection.insert(QLatin1String( "speakClipboard" ), speakClipboardAction);
     }
 }
 
@@ -457,7 +457,7 @@ class SystemTray : public KSystemTrayIcon
 {
     public:
         explicit SystemTray(KAccessibleApp *app, QWidget* parent)
-            : KSystemTrayIcon("preferences-desktop-accessibility", parent)
+            : KSystemTrayIcon(QLatin1String( "preferences-desktop-accessibility" ), parent)
         {
             //QAction *titleAction = contextMenuTitle();
             //titleAction->setText(i18n("Accessibility Bridge"));
@@ -467,7 +467,7 @@ class SystemTray : public KSystemTrayIcon
             //QAction* fileQuitAction = actionCollection()->action("file_quit");
             //if(fileQuitAction) delete actionCollection()->takeAction(fileQuitAction);
 
-            foreach(const QString &name, QStringList() << "enableScreenreader" << "speakText" << "speakClipboard")
+            foreach(const QString &name, QStringList() << QLatin1String( "enableScreenreader" ) << QLatin1String( "speakText" ) << QLatin1String( "speakClipboard" ))
                 if(KAction* action = app->action(name))
                     contextMenu()->addAction(action);
 
@@ -510,9 +510,9 @@ class MainWindow::Private
         {
             QWidget* p = dynamic_cast<QWidget*>(page);
             if (!p) return;
-            KPageWidgetItem* item = m_pageModel->addPage(p, ""); //p->objectName());
+            KPageWidgetItem* item = m_pageModel->addPage(p, QLatin1String( "" )); //p->objectName());
             item->setName(label);
-            item->setHeader(""); // hide the header
+            item->setHeader(QLatin1String( "" )); // hide the header
             item->setIcon(KIcon(iconset));
             QModelIndex index = m_pageModel->index(item);
             Q_ASSERT(index.isValid());
@@ -527,10 +527,10 @@ MainWindow::MainWindow(KAccessibleApp *app)
     : KMainWindow()
     , d(new Private(app))
 {
-    KConfig config("kaccessibleapp");
+    KConfig config(QLatin1String( "kaccessibleapp" ));
     KConfigGroup group = config.group("Main");
     d->m_logEnabled = group.readEntry("LogEnabled", d->m_logEnabled);
-    
+
     const int prevVoiceType = Speaker::instance()->voiceType();
     const int newVoiceType = group.readEntry("VoiceType", prevVoiceType);
     if(prevVoiceType != newVoiceType)
@@ -576,7 +576,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
 
     readerLayout->setColumnStretch(2,1);
     readerLayout->setRowStretch(2,1);
-    d->addPage(readerPage, KIcon("text-speak"), i18n("Screenreader"));
+    d->addPage(readerPage, KIcon(QLatin1String( "text-speak" )), i18n("Screenreader"));
 
     QWidget* logsPage = new QWidget(d->m_pageTab);
     QVBoxLayout* logsLayout = new QVBoxLayout(logsPage);
@@ -594,7 +594,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
     }
     connect(enableLogsCheckbox, SIGNAL(stateChanged(int)), this, SLOT(enableLogs(int)));
     logsLayout->addWidget(d->m_logs);
-    d->addPage(logsPage, KIcon("view-list-text"), i18n("Logs"));
+    d->addPage(logsPage, KIcon(QLatin1String( "view-list-text" )), i18n("Logs"));
 
     setCentralWidget(d->m_pageTab);
     resize(QSize(460, 320).expandedTo(minimumSizeHint()));
@@ -637,7 +637,7 @@ void MainWindow::notified(int reason, const KAccessibleInterface& iface)
 {
     QTreeWidgetItem *root = d->m_logs->invisibleRootItem();
     if(root->childCount() > 1000) delete root->takeChild(0);
-    
+
     QTreeWidgetItem *child = new QTreeWidgetItem(root);
     child->setText(0, reasonToString(reason));
     child->setText(1, typeToString(iface.type));
@@ -646,7 +646,7 @@ void MainWindow::notified(int reason, const KAccessibleInterface& iface)
     child->setText(4, iface.value);
     child->setText(5, iface.accelerator);
     child->setText(6, stateToString(iface.state));
-    child->setText(7, QString(" %1,%2,%3,%4").arg(iface.rect.x()).arg(iface.rect.y()).arg(iface.rect.width()).arg(iface.rect.height()));
+    child->setText(7, QString(QLatin1String( " %1,%2,%3,%4" )).arg(iface.rect.x()).arg(iface.rect.y()).arg(iface.rect.width()).arg(iface.rect.height()));
     child->setText(8, iface.objectName);
     child->setText(9, iface.description);
     d->m_logs->scrollToItem(child);
@@ -666,7 +666,7 @@ void MainWindow::enableLogs(int state)
 
     if(d->m_logEnabled != logEnabled) {
         d->m_logEnabled = logEnabled;
-        KConfig config("kaccessibleapp");
+        KConfig config(QLatin1String( "kaccessibleapp" ));
         KConfigGroup group = config.group("Main");
         group.writeEntry("LogEnabled", d->m_logEnabled);
     }
