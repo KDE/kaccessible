@@ -59,7 +59,7 @@
 #include <libspeechd.h>
 #endif
 
-Q_GLOBAL_STATIC(Speaker, speaker);
+Q_GLOBAL_STATIC(Speaker, speaker)
 
 class Speaker::Private
 {
