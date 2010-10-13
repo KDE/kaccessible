@@ -550,6 +550,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
     QGridLayout* readerLayout = new QGridLayout(readerPage);
     readerPage->setLayout(readerLayout);
 
+#if defined(SPEECHD_FOUND)
     QCheckBox *enableReader = new QCheckBox(i18n("Enable Screenreader"));
     enableReader->setChecked(d->m_adaptor->speechEnabled());
     connect(d->m_adaptor, SIGNAL(speechEnabledChanged(bool)), enableReader, SLOT(setChecked(bool)));
@@ -577,6 +578,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
     readerLayout->setColumnStretch(2,1);
     readerLayout->setRowStretch(2,1);
     d->addPage(readerPage, KIcon(QLatin1String( "text-speak" )), i18n("Screenreader"));
+#endif
 
     QWidget* logsPage = new QWidget(d->m_pageTab);
     QVBoxLayout* logsLayout = new QVBoxLayout(logsPage);
