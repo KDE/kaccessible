@@ -142,6 +142,7 @@ void Speaker::disconnect()
         spd_set_notification_off(d->m_connection, SPD_PAUSE);
         spd_set_notification_off(d->m_connection, SPD_RESUME);
         d->m_connection->callback_begin = d->m_connection->callback_end = d->m_connection->callback_cancel = d->m_connection->callback_pause = d->m_connection->callback_resume = 0;
+        spd_cancel_all(d->m_connection);
         spd_close(d->m_connection);
         d->m_connection = 0;
         d->m_isSpeaking = false;
@@ -244,6 +245,22 @@ char** Speaker::voices() const
     return NULL;
 }
 
+QStringList Speaker::languages() const
+{
+    QStringList result;
+#if defined(SPEECHD_FOUND)
+    if(d->m_connection) {
+        SPDVoice** voices = spd_list_synthesis_voices(d->m_connection);
+        while(voices && voices[0]) {
+            const QString lng = QString::fromLatin1(voices[0]->language);
+            if(!lng.isEmpty() && !result.contains(lng)) result.append(lng);
+            ++voices;
+        }
+    }
+#endif
+    return result;
+}
+
 int Speaker::voiceType() const
 {
     return d->m_voiceType;
@@ -275,12 +292,9 @@ Adaptor::Adaptor(QObject *parent)
     : QObject(parent)
     , d(new Private)
 {
-    qDBusRegisterMetaType<KAccessibleInterface>();
-
     KConfig config(QLatin1String( "kaccessibleapp" ));
     KConfigGroup group = config.group("Main");
     d->m_speechEnabled = group.readEntry("SpeechEnabled", d->m_speechEnabled);
-
 
     const int prevVoiceType = Speaker::instance()->voiceType();
     const int newVoiceType = group.readEntry("VoiceType", prevVoiceType);
@@ -384,6 +398,8 @@ KAccessibleApp::KAccessibleApp()
     : KUniqueApplication()
     , d(new Private)
 {
+    qDBusRegisterMetaType<KAccessibleInterface>();
+
     setWindowIcon(KIcon(QLatin1String( "preferences-desktop-accessibility" )));
     setQuitOnLastWindowClosed(false);
 
@@ -504,7 +520,7 @@ class MainWindow::Private
         bool m_hideMainWin;
         bool m_logEnabled;
 
-        explicit Private(KAccessibleApp *app) : m_app(app), m_adaptor(app->adaptor()), m_hideMainWin(false), m_logEnabled(false) {}
+        explicit Private(KAccessibleApp *app) : m_app(app), m_adaptor(app->adaptor()), m_systemtray(0), m_pageTab(0), m_pageModel(0), m_voiceTypeCombo(0), m_logs(0), m_hideMainWin(false), m_logEnabled(false) {}
 
         void addPage(QWidget* page, const QIcon& iconset, const QString& label)
         {
@@ -549,13 +565,12 @@ MainWindow::MainWindow(KAccessibleApp *app)
     QWidget* readerPage = new QWidget(d->m_pageTab);
     QGridLayout* readerLayout = new QGridLayout(readerPage);
     readerPage->setLayout(readerLayout);
-
-#if defined(SPEECHD_FOUND)
     QCheckBox *enableReader = new QCheckBox(i18n("Enable Screenreader"));
+    readerLayout->addWidget(enableReader,0,0,1,2);
+#if defined(SPEECHD_FOUND)
     enableReader->setChecked(d->m_adaptor->speechEnabled());
     connect(d->m_adaptor, SIGNAL(speechEnabledChanged(bool)), enableReader, SLOT(setChecked(bool)));
     connect(enableReader, SIGNAL(stateChanged(int)), this, SLOT(enableReaderChanged(int)));
-    readerLayout->addWidget(enableReader,0,0,1,2);
 
     QLabel *voiceTypeLabel = new QLabel(i18n("Voice Type:"), readerPage);
     readerLayout->addWidget(voiceTypeLabel,1,0);
@@ -575,10 +590,13 @@ MainWindow::MainWindow(KAccessibleApp *app)
     connect(d->m_voiceTypeCombo, SIGNAL(activated(int)), this, SLOT(voiceTypeChanged(int)));
     readerLayout->addWidget(d->m_voiceTypeCombo,1,1);
 
-    readerLayout->setColumnStretch(2,1);
     readerLayout->setRowStretch(2,1);
-    d->addPage(readerPage, KIcon(QLatin1String( "text-speak" )), i18n("Screenreader"));
+#else
+    enableReader->setEnabled(false);
+    readerLayout->setRowStretch(1,1);
 #endif
+    readerLayout->setColumnStretch(2,1);
+    d->addPage(readerPage, KIcon(QLatin1String( "text-speak" )), i18n("Screenreader"));
 
     QWidget* logsPage = new QWidget(d->m_pageTab);
     QVBoxLayout* logsLayout = new QVBoxLayout(logsPage);
@@ -600,6 +618,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
 
     setCentralWidget(d->m_pageTab);
     resize(QSize(460, 320).expandedTo(minimumSizeHint()));
+    setAutoSaveSettings();
 }
 
 MainWindow::~MainWindow()
@@ -641,16 +660,14 @@ void MainWindow::notified(int reason, const KAccessibleInterface& iface)
     if(root->childCount() > 1000) delete root->takeChild(0);
 
     QTreeWidgetItem *child = new QTreeWidgetItem(root);
-    child->setText(0, reasonToString(reason));
-    child->setText(1, typeToString(iface.type));
-    child->setText(2, iface.className);
-    child->setText(3, iface.name);
-    child->setText(4, iface.value);
-    child->setText(5, iface.accelerator);
-    child->setText(6, stateToString(iface.state));
-    child->setText(7, QString(QLatin1String( " %1,%2,%3,%4" )).arg(iface.rect.x()).arg(iface.rect.y()).arg(iface.rect.width()).arg(iface.rect.height()));
-    child->setText(8, iface.objectName);
-    child->setText(9, iface.description);
+    child->setText(1, iface.className);
+    child->setText(2, iface.name);
+    child->setText(3, iface.value);
+    child->setText(4, iface.accelerator);
+    child->setText(5, stateToString(iface.state));
+    child->setText(6, QString(QLatin1String("%1,%2,%3,%4")).arg(iface.rect.x()).arg(iface.rect.y()).arg(iface.rect.width()).arg(iface.rect.height()));
+    child->setText(7, iface.objectName);
+    child->setText(8, iface.description);
     d->m_logs->scrollToItem(child);
 }
 

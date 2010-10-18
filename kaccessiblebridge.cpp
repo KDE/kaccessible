@@ -39,7 +39,6 @@ class Bridge::Private
         BridgePlugin *m_plugin;
         const QString m_key;
         QAccessibleInterface *m_root;
-        QDBusInterface *m_app;
         QList<QObject*> m_popupMenus;
         QRect m_lastFocusRect;
         QString m_lastFocusName;
@@ -48,8 +47,8 @@ class Bridge::Private
             : m_plugin(plugin)
             , m_key(key)
             , m_root(0)
-            , m_app(0)
             , m_lastFocusRect(QRect(0,0,0,0))
+            , m_app(0)
         {
         }
 
@@ -57,14 +56,36 @@ class Bridge::Private
         {
             delete m_app;
         }
-};
 
+        QDBusInterface* app()
+        {
+           Q_ASSERT(m_root);
+           if(!m_app) {
+                m_app = new QDBusInterface(QLatin1String("org.kde.kaccessibleapp"), QLatin1String("/Adaptor"));
+                if(m_app->isValid()) {
+                   kDebug() << "Connected with the org.kde.kaccessibleapp dbus-service";
+                   KAccessibleInterface dbusIface;
+                   dbusIface.set(m_root, 0);
+                   m_app->asyncCall(QLatin1String("setRootObject"), qVariantFromValue(dbusIface));
+                }
+            }
+            if(m_app->lastError().isValid()) {
+                kDebug() << "DBus error:" << m_app->lastError().name() << m_app->lastError().message();
+                delete m_app; m_app = 0;
+            } else if(!m_app->isValid()) {
+                kDebug() << "Failed to connect with the org.kde.kaccessibleapp dbus-service";
+                delete m_app; m_app = 0;
+            }
+            return m_app;
+       }
+    private:
+        QDBusInterface *m_app;
+};
 Bridge::Bridge(BridgePlugin *plugin, const QString& key)
     : QObject(plugin)
     , QAccessibleBridge()
     , d(new Private(plugin, key))
 {
-    qDBusRegisterMetaType<KAccessibleInterface>();
 }
 
 Bridge::~Bridge()
@@ -74,70 +95,29 @@ Bridge::~Bridge()
 
 void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interface, int child)
 {
-    if(!d->m_root) {
-        return;
-    }
-
     if(reason == QAccessible::ObjectShow || reason == QAccessible::ObjectHide) {
         return;
     }
 
-    if(!d->m_app) {
-        d->m_app = new QDBusInterface(QLatin1String( "org.kde.kaccessibleapp" ),QLatin1String( "/Adaptor" ));
-        if(d->m_app->isValid())
-            kDebug() << "Connected with the org.kde.kaccessibleapp dbus-service";
-    }
-
-    if(d->m_app->lastError().isValid()) {
-        kDebug() << "DBus error:" << d->m_app->lastError().name() << d->m_app->lastError().message();
-        delete d->m_app;
-        d->m_app = 0;
-        return;
-    }
-
-    if(!d->m_app->isValid()) {
-        kDebug() << "Failed to connect with the org.kde.kaccessibleapp dbus-service";
-        delete d->m_app;
-        d->m_app = 0;
+    if(!d->m_root) {
         return;
     }
 
     QObject *obj = interface->object();
+    if(!obj) {
+         return;
+    }
+
+    QDBusInterface* app = d->app();
+    if(!app) {
+        return;
+    }
+
     const QString name = interface->text(QAccessible::Name, child);
     const QString description = interface->text(QAccessible::Description, child);
 
     KAccessibleInterface dbusIface;
-    dbusIface.name = name;
-    dbusIface.description = description.isEmpty() ? interface->text(QAccessible::Help, child) : description;
-    dbusIface.value = interface->text(QAccessible::Value, child);
-    dbusIface.accelerator = interface->text(QAccessible::Accelerator, child);
-    dbusIface.rect = interface->rect(child);
-    dbusIface.objectName = interface->object()->objectName();
-    dbusIface.className = QLatin1String( interface->object()->metaObject()->className() );
-    dbusIface.state = interface->state(child);
-
-    if(obj->inherits("QMenu") /*|| (!d->m_popupMenus.isEmpty() && obj->inherits("QAction"))*/)
-        dbusIface.type = KAccessibleInterface::Menu;
-    else if(obj->inherits("QAbstractButton"))
-        dbusIface.type = KAccessibleInterface::Button;
-    else if(obj->inherits("QLineEdit") || obj->inherits("QAbstractSpinBox"))
-        dbusIface.type = KAccessibleInterface::Edit;
-    else if(obj->inherits("QComboBox"))
-        dbusIface.type = KAccessibleInterface::Combobox;
-    else if(obj->inherits("QCheckBox"))
-        dbusIface.type = KAccessibleInterface::Checkbox;
-    else if(obj->inherits("QRadioButton"))
-        dbusIface.type = KAccessibleInterface::Radiobutton;
-    else if(obj->inherits("QLabel"))
-        dbusIface.type = KAccessibleInterface::Label;
-    else if(obj->inherits("QAbstractItemView"))
-        dbusIface.type = KAccessibleInterface::Listview;
-    else if(obj->inherits("QDialog") || obj->inherits("QMainWindow"))
-        dbusIface.type = KAccessibleInterface::Dialog;
-    else if(obj->inherits("QWidget"))
-        dbusIface.type = KAccessibleInterface::Widget;
-    else
-        dbusIface.type = KAccessibleInterface::Object;
+    dbusIface.set(interface, child);
 
     QAccessibleInterface *childInterface = 0;
     //if(child > 0) interface->navigate(QAccessible::Child, child, &childInterface);
@@ -153,26 +133,26 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
 
         case QAccessible::Alert: {
             //kDebug() << reasonToString(reason) << "object=" << (obj ? QString("%1 (%2)").arg(obj->objectName()).arg(obj->metaObject()->className()) : "NULL") << "name=" << name;
-            d->m_app->asyncCall(QLatin1String( "setAlert" ), qVariantFromValue(dbusIface));
+            app->asyncCall(QLatin1String( "setAlert" ), qVariantFromValue(dbusIface));
         } break;
 
         case QAccessible::DialogStart: {
             kDebug() << reasonToString(reason) << QLatin1String( "object=" ) << (obj ? QString(QLatin1String( "%1 (%2)" )).arg(obj->objectName()).arg(QLatin1String( obj->metaObject()->className() )) : QLatin1String( "NULL" )) << QLatin1String( "name=" ) << name;
-            //d->m_app->asyncCall("sayText", name);
+            //app->asyncCall("sayText", name);
         } break;
         case QAccessible::DialogEnd: {
             kDebug() << reasonToString(reason) << QLatin1String( "object=" ) << (obj ? QString(QLatin1String( "%1 (%2)" )).arg(obj->objectName()).arg(QLatin1String( obj->metaObject()->className() )) : QLatin1String( "NULL" )) << QLatin1String( "name=" ) << name;
-            //d->m_app->asyncCall("sayText", name);
+            //app->asyncCall("sayText", name);
         } break;
 
         case QAccessible::NameChanged: {
             kDebug() << reasonToString(reason) << QLatin1String( "object=" ) << (obj ? QString(QLatin1String( "%1 (%2)" )).arg(obj->objectName()).arg(QLatin1String( obj->metaObject()->className() )) : QLatin1String( "NULL" )) << QLatin1String( "name=" ) << name;
-            //d->m_app->asyncCall("sayText", name);
+            //app->asyncCall("sayText", name);
         } break;
         case QAccessible::ValueChanged: {
             QString value = interface->text(QAccessible::Value, child);
             kDebug() << reasonToString(reason) << QLatin1String( "object=" ) << (obj ? QString(QLatin1String( "%1 (%2)" )).arg(obj->objectName() ).arg(QLatin1String( obj->metaObject()->className() )) : QLatin1String( "NULL" )) << QLatin1String( "name=" ) << name << QLatin1String( "value=" ) << value;
-            d->m_app->asyncCall(QLatin1String( "setValueChanged" ), qVariantFromValue(dbusIface));
+            app->asyncCall(QLatin1String( "setValueChanged" ), qVariantFromValue(dbusIface));
         } break;
         case QAccessible::StateChanged: {
             kDebug() << reasonToString(reason) << QLatin1String( "object=" ) << (obj ? QString(QLatin1String( "%1 (%2)" ) ).arg(obj->objectName()).arg(QLatin1String( obj->metaObject()->className() )) : QLatin1String( "NULL" )) << QLatin1String( "name=" )<< name << QLatin1String( "state=" ) << stateToString(dbusIface.state);
@@ -202,7 +182,7 @@ void Bridge::notifyAccessibilityUpdate(int reason, QAccessibleInterface *interfa
             // if(w) r = QRect(w->mapToGlobal(QPoint(w->x(), w->y())), w->size());
 
             kDebug() << reasonToString(reason) << QLatin1String( "object=" ) << (obj ? QString(QLatin1String( "%1 (%2)" )).arg(obj->objectName()).arg(QLatin1String( obj->metaObject()->className() )) : QLatin1String( "NULL" )) << QLatin1String( "name=" ) << name << QLatin1String( "rect=" ) << dbusIface.rect;
-            d->m_app->asyncCall(QLatin1String( "setFocusChanged" ), qVariantFromValue(dbusIface));
+            app->asyncCall(QLatin1String( "setFocusChanged" ), qVariantFromValue(dbusIface));
         } break;
         default:
             kDebug() << reasonToString(reason) << QLatin1String( "object=" ) << (obj ? QString(QLatin1String( "%1 (%2)" )).arg(obj->objectName()).arg(QLatin1String( obj->metaObject()->className() )) : QLatin1String( "NULL" )) << QLatin1String( "name=" ) << name;
@@ -247,6 +227,7 @@ void Bridge::setRootObject(QAccessibleInterface *interface)
 BridgePlugin::BridgePlugin(QObject *parent)
     : QAccessibleBridgePlugin(parent)
 {
+    qDBusRegisterMetaType<KAccessibleInterface>();
 }
 
 BridgePlugin::~BridgePlugin()

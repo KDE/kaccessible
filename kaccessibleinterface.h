@@ -19,6 +19,9 @@
 #ifndef KACCESSIBLEINTERFACE_H
 #define KACCESSIBLEINTERFACE_H
 
+#include <QMetaType>
+#include <QMetaObject>
+#include <QList>
 #include <QAccessibleInterface>
 #include <QDBusArgument>
 
@@ -39,32 +42,34 @@ class KAccessibleInterface
         QString objectName;
         QString className;
 
-        enum Type {
-            Object,
-            Widget,
-            Dialog,
-            Menu,
-            Button,
-            Edit,
-            Combobox,
-            Checkbox,
-            Radiobutton,
-            Label,
-            Listview
-        };
-        Type type;
-
         QAccessible::State state;
 
-        explicit KAccessibleInterface() : type(Object), state(QFlags<QAccessible::StateFlag>()) {}
+        explicit KAccessibleInterface() : state(QFlags<QAccessible::StateFlag>()) {}
+
+        void set(QAccessibleInterface *interface, int child)
+        {
+            name = interface->text(QAccessible::Name, child);
+            const QString desc = interface->text(QAccessible::Description, child);
+            description = desc.isEmpty() ? interface->text(QAccessible::Help, child) : desc;
+            value = interface->text(QAccessible::Value, child);
+            accelerator = interface->text(QAccessible::Accelerator, child);
+            rect = interface->rect(child);
+            objectName = interface->object()->objectName();
+            QObject *object = interface->object();
+            className = QString::fromLatin1(object->metaObject()->className());
+            state = interface->state(child);
+        }
 };
 
 Q_DECLARE_METATYPE(KAccessibleInterface)
 
+//typedef QList<KAccessibleInterface*> KAccessibleInterfaceList;
+//Q_DECLARE_METATYPE(KAccessibleInterfaceList)
+
 QDBusArgument &operator<<(QDBusArgument &argument, const KAccessibleInterface &a)
 {
     argument.beginStructure();
-    argument << a.name << a.description << a.value << a.accelerator << a.rect << a.objectName << a.className << int(a.type) << int(a.state);
+    argument << a.name << a.description << a.value << a.accelerator << a.rect << a.objectName << a.className << int(a.state);
     argument.endStructure();
     return argument;
 }
@@ -72,9 +77,8 @@ QDBusArgument &operator<<(QDBusArgument &argument, const KAccessibleInterface &a
 const QDBusArgument &operator>>(const QDBusArgument &argument, KAccessibleInterface &a)
 {
     argument.beginStructure();
-    int type, state;
-    argument >> a.name >> a.description >> a.value >> a.accelerator >> a.rect >> a.objectName >> a.className >> type >> state;
-    a.type = (KAccessibleInterface::Type) type;
+    int state;
+    argument >> a.name >> a.description >> a.value >> a.accelerator >> a.rect >> a.objectName >> a.className >> state;
     a.state = QAccessible::State(state);
     argument.endStructure();
     return argument;
@@ -149,24 +153,6 @@ QString stateToString(QAccessible::State flags)
     if(flags & QAccessible::Traversed) result += QLatin1String( "Traversed " );
     if(flags & QAccessible::Unavailable) result += QLatin1String( "Unavailable " );
     return result.trimmed();
-}
-
-QString typeToString(int type)
-{
-    switch(type) {
-        case KAccessibleInterface::Object: return QLatin1String( "Object" );
-        case KAccessibleInterface::Widget: return QLatin1String( "Widget" );
-        case KAccessibleInterface::Dialog: return QLatin1String( "Dialog" );
-        case KAccessibleInterface::Menu: return QLatin1String( "Menu" );
-        case KAccessibleInterface::Button: return QLatin1String( "Button" );
-        case KAccessibleInterface::Edit: return QLatin1String( "Edit" );
-        case KAccessibleInterface::Combobox: return QLatin1String( "Combobox" );
-        case KAccessibleInterface::Checkbox: return QLatin1String( "Checkbox" );
-        case KAccessibleInterface::Radiobutton: return QLatin1String( "Radiobutton" );
-        case KAccessibleInterface::Label: return QLatin1String( "Label" );
-        case KAccessibleInterface::Listview: return QLatin1String( "Listview" );
-    }
-    return QString::number(type);
 }
 
 #endif

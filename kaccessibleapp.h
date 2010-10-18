@@ -55,6 +55,7 @@ class Speaker : public QObject
 
         char** modules() const;
         char** voices() const;
+        QStringList languages() const;
         
         int voiceType() const;
         void setVoiceType(int type);
