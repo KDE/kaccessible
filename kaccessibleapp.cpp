@@ -461,7 +461,7 @@ void KAccessibleApp::speakClipboard()
 
 void KAccessibleApp::speakText()
 {
-    const QString text = KInputDialog::getText(i18n("Speak Text..."), i18n("Type the text and press OK to speak the text."));
+    const QString text = KInputDialog::getText(i18n("Speak Text"), i18n("Type the text and press OK to speak the text."));
     if(!text.isEmpty()) {
         //Speaker::instance()->cancel();
         Speaker::instance()->say(text);
