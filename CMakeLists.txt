@@ -63,7 +63,7 @@ macro_optional_find_package(Speechd)
 macro_log_feature(SPEECHD_FOUND "speechd" "Speech Dispatcher provides a high-level device independent layer for speech synthesis" "http://www.freebsoft.org/speechd" FALSE "" "Speech dispatcher is an optional dependency for kaccessible.")
 
 if(SPEECHD_FOUND)
-  set(SPEECH_LIB speechd)
+  set(SPEECH_LIB ${SPEECHD_LIBRARIES})
   add_definitions(-DSPEECHD_FOUND)
 endif(SPEECHD_FOUND)
 
