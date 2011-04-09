@@ -60,6 +60,8 @@ dbus_add_activation_service(org.kde.kaccessible.service.in)
 ##################################################################
 
 macro_optional_find_package(Speechd)
+macro_log_feature(SPEECHD_FOUND "speechd" "Speech Dispatcher provides a high-level device independent layer for speech synthesis" "http://www.freebsoft.org/speechd" FALSE "" "Speech dispatcher is an optional dependency for kaccessible.")
+
 if(SPEECHD_FOUND)
   set(SPEECH_LIB speechd)
   add_definitions(-DSPEECHD_FOUND)
