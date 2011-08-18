@@ -1,5 +1,18 @@
 project(kaccessible)
 
+set(CMAKE_MODULE_PATH "${kttsd_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+
+find_package(KDE4 REQUIRED)
+include (KDE4Defaults)
+include (MacroLibrary)
+
+add_definitions (${QT_DEFINITIONS} ${KDE4_DEFINITIONS})
+add_definitions( -DQT_NO_CAST_FROM_ASCII )
+add_definitions( -DQT_NO_CAST_TO_ASCII )
+add_definitions(-DQT_USE_FAST_CONCATENATION -DQT_USE_FAST_OPERATOR_PLUS)
+
+include_directories (${CMAKE_SOURCE_DIR} ${CMAKE_BINARY_DIR} ${KDE4_INCLUDES})
+
 #find_package(Qt4 REQUIRED)
 #find_package(KDE4 REQUIRED)
 #find_package(X11 REQUIRED)
