@@ -564,6 +564,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
 
     QWidget* readerPage = new QWidget(d->m_pageTab);
     QGridLayout* readerLayout = new QGridLayout(readerPage);
+    readerLayout->setMargin(0);
     readerPage->setLayout(readerLayout);
     QCheckBox *enableReader = new QCheckBox(i18n("Enable Screenreader"));
     readerLayout->addWidget(enableReader,0,0,1,2);
@@ -600,6 +601,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
 
     QWidget* logsPage = new QWidget(d->m_pageTab);
     QVBoxLayout* logsLayout = new QVBoxLayout(logsPage);
+    logsLayout->setMargin(0);
     logsPage->setLayout(logsLayout);
     QCheckBox *enableLogsCheckbox = new QCheckBox(i18n("Enable Logs"));
     logsLayout->addWidget(enableLogsCheckbox);
