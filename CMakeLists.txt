@@ -1,6 +1,6 @@
 project(kaccessible)
 
-set(CMAKE_MODULE_PATH "${kttsd_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
+set(CMAKE_MODULE_PATH "${kaccessible_SOURCE_DIR}/cmake" ${CMAKE_MODULE_PATH})
 
 find_package(KDE4 REQUIRED)
 include (KDE4Defaults)
