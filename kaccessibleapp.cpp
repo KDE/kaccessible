@@ -706,10 +706,10 @@ void MainWindow::voiceTypeChanged(int index)
 int main(int argc, char *argv[])
 {
     KAboutData aboutData("kaccessibleapp", "preferences-desktop-accessibility",
-                         ki18n("KDE Accessibility Bridge"), "0.3",
-                         ki18n("KDE Accessibility Bridge"), KAboutData::License_GPL,
-                         ki18n("(c) 2010 Sebastian Sauer"));
-    aboutData.addAuthor(ki18n("Sebastian Sauer"), ki18n("Maintainer"), "mail@dipe.org");
+                         ki18n("KDE Accessible"), "0.4",
+                         ki18n("KDE Accessible"), KAboutData::License_GPL,
+                         ki18n("(c) 2010, 2011 Sebastian Sauer"));
+    aboutData.addAuthor(ki18n("Sebastian Sauer"), ki18n("Maintainer"), "sebastian.sauer@kdab.com");
     KCmdLineArgs::init(argc, argv, &aboutData);
     KUniqueApplication::addCmdLineOptions();
     if (!KUniqueApplication::start()) {
