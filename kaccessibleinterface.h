@@ -26,7 +26,7 @@
 #include <QDBusArgument>
 
 /**
- * This class represents the QAccessibleInterface informations of
+ * This class represents the QAccessibleInterface information of
  * a QObject transported over dbus from the \a Bridge dbus-service to
  * the \a KAccessibleApp application.
  */

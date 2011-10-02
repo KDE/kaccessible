@@ -27,7 +27,6 @@
 #include <QStack>
 #include <QTextStream>
 #include <QLabel>
-#include <QComboBox>
 #include <QCheckBox>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
@@ -41,6 +40,7 @@
 #include <QDBusMetaType>
 #include <kmainwindow.h>
 #include <kconfig.h>
+#include <kcombobox.h>
 #include <kconfiggroup.h>
 #include <klocale.h>
 #include <kicon.h>
@@ -515,7 +515,7 @@ class MainWindow::Private
         SystemTray *m_systemtray;
         KPageWidget *m_pageTab;
         KPageWidgetModel *m_pageModel;
-        QComboBox* m_voiceTypeCombo;
+        KComboBox* m_voiceTypeCombo;
         QTreeWidget *m_logs;
         bool m_hideMainWin;
         bool m_logEnabled;
@@ -575,7 +575,7 @@ MainWindow::MainWindow(KAccessibleApp *app)
 
     QLabel *voiceTypeLabel = new QLabel(i18n("Voice Type:"), readerPage);
     readerLayout->addWidget(voiceTypeLabel,1,0);
-    d->m_voiceTypeCombo = new QComboBox(this);
+    d->m_voiceTypeCombo = new KComboBox(this);
     voiceTypeLabel->setBuddy(d->m_voiceTypeCombo);
     d->m_voiceTypeCombo->addItem(i18n("Male 1"), SPD_MALE1);
     d->m_voiceTypeCombo->addItem(i18n("Male 2"), SPD_MALE2);

@@ -76,14 +76,14 @@ class Bridge : public QObject, public QAccessibleBridge
  * This class implements a QAccessibleBridgePlugin which will be loaded
  * by the QAccessible framework at runtime. The plugin hooks then into
  * the application, evaluates accessibility updates and calls the talks
- * the KAccessibleApp's over dbus to broadcast informations around.
+ * the KAccessibleApp's over dbus to broadcast information around.
  */
 class BridgePlugin : public QAccessibleBridgePlugin
 {
     public:
         explicit BridgePlugin(QObject *parent = 0);
         virtual ~BridgePlugin();
-        
+
         /**
          * Creates and returns the QAccessibleBridge object corresponding to the given key. Keys
          * are case sensitive.
