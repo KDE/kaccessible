@@ -705,7 +705,7 @@ void MainWindow::voiceTypeChanged(int index)
 
 int main(int argc, char *argv[])
 {
-    KAboutData aboutData("kaccessibleapp", "preferences-desktop-accessibility",
+    KAboutData aboutData("kaccessibleapp", "",
                          ki18n("KDE Accessible"), "0.4",
                          ki18n("KDE Accessible"), KAboutData::License_GPL,
                          ki18n("(c) 2010, 2011 Sebastian Sauer"));
