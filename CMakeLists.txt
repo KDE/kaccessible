@@ -67,6 +67,7 @@ macro_display_feature_log()
 if(SPEECHD_FOUND)
   set(SPEECH_LIB ${SPEECHD_LIBRARIES})
   add_definitions(-DSPEECHD_FOUND)
+  include_directories(${SPEECHD_INCLUDE_DIR})
 endif(SPEECHD_FOUND)
 
 set(kaccessibleapp_SRCS kaccessibleapp.cpp)
