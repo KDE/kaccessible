@@ -166,7 +166,7 @@ class MainWindow : public KMainWindow
 {
         Q_OBJECT
     public:
-        MainWindow(KAccessibleApp *app);
+        explicit MainWindow(KAccessibleApp *app);
         virtual ~MainWindow();
         virtual void show();
         virtual void hide();
