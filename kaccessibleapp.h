@@ -168,8 +168,7 @@ class MainWindow : public KMainWindow
     public:
         explicit MainWindow(KAccessibleApp *app);
         virtual ~MainWindow();
-        virtual void show();
-        virtual void hide();
+        virtual void show(); // wishful thinking, it's not virtual.
         bool queryExit();
         bool queryClose();
     private Q_SLOTS:

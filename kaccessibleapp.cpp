@@ -628,6 +628,7 @@ MainWindow::~MainWindow()
     delete d;
 }
 
+// #### WRONG, show() is not virtual in QWidget (since Qt 4.0)
 void MainWindow::show()
 {
     if (!d->m_hideMainWin) {
@@ -636,11 +637,7 @@ void MainWindow::show()
     }
 }
 
-void MainWindow::hide()
-{
-    KMainWindow::hide();
-}
-
+// Deprecated, won't be called in KF5. Replace with closeEvent, possibly.
 bool MainWindow::queryExit()
 {
     d->m_hideMainWin = isHidden();
@@ -649,7 +646,7 @@ bool MainWindow::queryExit()
 
 bool MainWindow::queryClose()
 {
-    if (!QObject::sender()) {
+    if (!QObject::sender()) { // ### Looks very fishy, what is this really testing for?
         hide();
         return false;
     }
